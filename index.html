@@ -32,12 +32,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
+                            <!-- 這裡多加了「時間」 -->
+                            <th>日期</th><th>時間</th><th>呼號</th><th>頻段</th><th>模式</th>
                             <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>備註</th>
                         </tr>
                     </thead>
                     <tbody id="qsoTableBody">
-                        <tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>
+                        <!-- 載入中提示，colspan 改為 9 -->
+                        <tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
