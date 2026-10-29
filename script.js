@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯 (包含搜尋功能)
+   script.js - 首頁（總覽）專用邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,7 +7,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
-let filteredRecords = []; // 用來存放過濾後的資料
+let filteredRecords = []; 
 let currentLang = localStorage.getItem('site_lang') || 'zh'; 
 
 // ============================================================
@@ -38,12 +38,11 @@ function applyLanguage() {
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 如果有資料，重新渲染表格
     if (qslRecords.length > 0) renderMainTable();
 }
 
 // ============================================================
-// 狀態判斷
+// 狀態判斷與翻譯
 // ============================================================
 function computeQslStatus(r) {
     const t = {
@@ -87,15 +86,18 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// ============================================================
-// 取得資料與渲染
-// ============================================================
 async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
+
+    _supabase.functions.invoke('cleanup-old-images').then(({ data, error }) => {
+        if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
+            console.log("🧹 背景清理通知：", data.message);
+        }
+    });
 
     const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
 
@@ -106,7 +108,7 @@ async function fetchData() {
     }
 
     qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
-    filteredRecords = [...qslRecords]; // 預設顯示全部
+    filteredRecords = [...qslRecords]; 
     renderMainTable();
 }
 
@@ -144,8 +146,12 @@ function renderMainTable() {
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             }
             
-            const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星交信' };
+            // 翻譯備註 (日文改為衛星通信)
+            const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
+            
+            // 處理 LoTW 文字 (不帶任何樣式)
+            displayNote = displayNote.replace('[LoTW]', 'LoTW ');
         }
 
         return `<tr>
@@ -162,34 +168,27 @@ function renderMainTable() {
     }).join('');
 }
 
-// ============================================================
-// 初始化與搜尋事件綁定
-// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('qsoTableBody')) return;
 
     applyLanguage();
 
-    const lb = document.getElementById('lightbox');
-    if (lb) lb.addEventListener('click', closeLightbox);
-    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
-
-    // 👇 綁定搜尋框的即時輸入事件 👇
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             const keyword = this.value.trim().toUpperCase();
-            
             if (!keyword) {
-                // 如果清空搜尋框，顯示全部
                 filteredRecords = [...qslRecords];
             } else {
-                // 否則過濾包含關鍵字的呼號
                 filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
             }
             renderMainTable();
         });
     }
+
+    const lb = document.getElementById('lightbox');
+    if (lb) lb.addEventListener('click', closeLightbox);
+    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
 
     fetchData();
 });
