@@ -45,8 +45,8 @@ function getDisplayInfo(r) {
     if (r.note) {
         const satMatch = r.note.match(/^\[(.*?)\]/);
         if (satMatch && satMatch[1]) {
-            displayBand = satMatch[1]; // 頻段變衛星名稱
-            displayMode = 'SAT';       // 模式變 SAT
+            displayBand = satMatch[1]; 
+            displayMode = 'SAT';       
         }
     }
     return { band: displayBand, mode: displayMode };
@@ -140,15 +140,15 @@ async function calculateStorageUsage() {
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
-    manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
+    manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
 
     const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
 
-    if (error) { manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
-    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
+    if (error) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
+    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
 
     manageTableBody.innerHTML = data.map(r => {
-        const display = getDisplayInfo(r); // 取得替換後的頻段與模式
+        const display = getDisplayInfo(r); 
 
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
         if (r.requests && r.requests.length > 0) {
@@ -201,6 +201,7 @@ async function renderAdminTable() {
 
         return `<tr>
             <td>${escapeHtml(r.date)}</td>
+            <td><strong>${escapeHtml(r.time || '—')}</strong></td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(display.band)}</strong></td>
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
@@ -354,6 +355,9 @@ function parseADIF(content) {
         else if (fieldName === 'QSO_DATE') { 
             let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; 
         } 
+        else if (fieldName === 'TIME_ON') {
+            let t = value; if (t.length >= 4) t = `${t.slice(0,2)}:${t.slice(2,4)}`; current.time = t;
+        }
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
@@ -381,6 +385,7 @@ async function uploadADIF() {
 
             newRecords.push({ 
                 date: p.date || '—', 
+                time: p.time || '—', // 寫入時間
                 call: p.call, 
                 band: p.band || '—', 
                 mode: p.mode || '—', 
@@ -403,21 +408,35 @@ async function uploadADIF() {
 async function addManualRecord() {
     const btnAddManual = document.getElementById('btnAddManual');
     const date = document.getElementById('manualDate').value;
+    const time = document.getElementById('manualTime').value; // 抓取時間
     const call = document.getElementById('manualCall').value.trim().toUpperCase();
     const band = document.getElementById('manualBand').value.trim();
     const mode = document.getElementById('manualMode').value.trim().toUpperCase();
     const note = document.getElementById('manualNote').value.trim();
+    
     if (!date || !call || !band || !mode) { showToast('請填寫完整欄位'); return; }
 
     btnAddManual.disabled = true; btnAddManual.textContent = '新增中...';
-    const { error } = await _supabase.from('qsl_records').insert([{ date, call, band, mode, note, requests: [] }]);
+    const { error } = await _supabase.from('qsl_records').insert([{ 
+        date, 
+        time, // 寫入時間
+        call, 
+        band, 
+        mode, 
+        note, 
+        requests: [] 
+    }]);
     btnAddManual.disabled = false; btnAddManual.textContent = '新增紀錄';
     
     if (error) { showToast('❌ 新增失敗'); } 
     else {
         showToast(`✅ 已新增 ${call}`);
-        document.getElementById('manualDate').value = ''; document.getElementById('manualCall').value = '';
-        document.getElementById('manualBand').value = ''; document.getElementById('manualMode').value = ''; document.getElementById('manualNote').value = '';
+        document.getElementById('manualDate').value = ''; 
+        document.getElementById('manualTime').value = ''; // 清空時間
+        document.getElementById('manualCall').value = '';
+        document.getElementById('manualBand').value = ''; 
+        document.getElementById('manualMode').value = ''; 
+        document.getElementById('manualNote').value = '';
         renderAdminTable(); calculateStorageUsage();
     }
 }
