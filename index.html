@@ -15,16 +15,22 @@
                 <span>BX2AOV QSL confirm</span>
                 <span class="callsign-badge">BX2AOV</span>
             </div>
+            
             <ul class="nav-links">
-                <!-- 加入 data-zh 與 data-en 屬性 -->
                 <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-en="Overview">總覽</a></li>
                 <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-en="My Requests">我的申請</a></li>
                 <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-en="Admin">管理員</a></li>
             </ul>
             
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <!-- 語言切換按鈕 -->
-                <button id="langToggle" class="btn btn-outline btn-sm" style="padding: 6px 12px; font-size: 0.85rem;">EN</button>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <!-- 👇 新的滑動開關 👇 -->
+                <div class="lang-switch" id="langToggle" title="切換語言 / Switch Language">
+                    <div class="lang-slider"></div>
+                    <span class="lang-option" data-lang="zh">中文</span>
+                    <span class="lang-option" data-lang="en">EN</span>
+                </div>
+                <!-- 👆 新的滑動開關 👆 -->
+
                 <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
                     <span class="role-badge" data-zh="訪客" data-en="Guest">訪客</span>
                 </div>
