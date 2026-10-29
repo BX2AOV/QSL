@@ -1,4 +1,4 @@
-1/* ===== Reset ===== */
+/* ===== Reset ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
 body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
 .app-container { width: 100%; max-width: 1200px; }
@@ -79,8 +79,15 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
 .role-badge { padding: 6px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; background: #e3efff; color: #0066cc; display: inline-block; }
 .role-badge.admin { background: #fff3e0; color: #b45f06; }
 
-/* ===== 表格 ===== */
-.table-wrapper { overflow-x: auto; margin-top: 16px; border-radius: 20px; border: 1px solid #e1eaf2; }
+/* ===== 表格 (修復圓角) ===== */
+.table-wrapper { 
+    overflow-x: auto; 
+    margin-top: 16px; 
+    border-radius: 20px; 
+    border: 1px solid #e1eaf2; 
+    /* 讓滾動條在 iOS 上更順滑 */
+    -webkit-overflow-scrolling: touch; 
+}
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 900px; }
 th { background: #f4f9ff; text-align: left; padding: 16px 18px; font-weight: 600; color: #1a3a5c; border-bottom: 1px solid #dae5f0; white-space: nowrap; }
 td { padding: 14px 18px; border-bottom: 1px solid #edf2f8; color: #2b4056; vertical-align: middle; }
@@ -99,9 +106,19 @@ tr:hover td { background: #fafdff; }
 .badge-approved { background: #d9f0e0; color: #0e6b3e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; white-space: nowrap; }
 .badge-rejected { background: #fde8e8; color: #b03030; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; white-space: nowrap; }
 
-/* ===== 搜尋框 ===== */
+/* ===== 搜尋框 (修復圓角) ===== */
 .search-box { flex: 1; max-width: 300px; min-width: 200px; }
-.search-box input { width: 100%; padding: 12px 20px; border-radius: 40px; border: 1.5px solid #cbdae8; font-size: 0.95rem; background: #f8fbfe; outline: none; transition: 0.25s; font-family: inherit; }
+.search-box input { 
+    width: 100%; 
+    padding: 12px 20px; 
+    border-radius: 40px; /* 確保這裡是大圓角 */
+    border: 1.5px solid #cbdae8; 
+    font-size: 0.95rem; 
+    background: #f8fbfe; 
+    outline: none; 
+    transition: 0.25s; 
+    font-family: inherit; 
+}
 .search-box input:focus { border-color: #0066cc; background: #ffffff; box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15); }
 
 /* ===== 管理員與表單專區 ===== */
@@ -147,17 +164,15 @@ tr:hover td { background: #fafdff; }
     .nav-links a { padding: 8px 14px; font-size: 0.85rem; }
     .header-bar > div:last-child { width: 100%; justify-content: center; margin-top: 4px; }
     .card { padding: 20px 18px; border-radius: 24px; }
+    
+    /* 確保手機版表格排版正常 */
     table { font-size: 0.8rem; min-width: 800px; }
     th, td { padding: 10px 12px; }
+    
     .search-box { max-width: 100%; width: 100%; margin-top: 10px; }
 
     /* 修正手機版管理員登入框爆高 */
     .admin-login-box { flex-direction: column !important; padding: 16px !important; gap: 12px !important; }
     .admin-login-box input { flex: none !important; width: 100% !important; height: 50px !important; padding: 10px 16px !important; border-radius: 12px !important; }
     .admin-login-box .btn { width: 100% !important; padding: 12px !important; }
-}
-
-/* 首頁如果沒有圖片，就完全隱藏佔位框 */
-.qsl-thumb-empty {
-    display: none !important;
 }
