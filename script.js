@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯 (四國語言版)
+   script.js - 首頁（總覽）專用邏輯 (精準切換語言版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,48 +7,44 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
-// 預設繁體中文
 let currentLang = localStorage.getItem('site_lang') || 'zh'; 
 
 // ============================================================
-// 語言切換核心邏輯
+// 🌟 核心：精準點擊哪個語言就切換
 // ============================================================
+window.changeLang = function(lang) {
+    currentLang = lang;
+    localStorage.setItem('site_lang', currentLang);
+    applyLanguage();
+};
+
 function applyLanguage() {
-    // 1. 切換所有 data-xxx 的元素文字
+    // 1. 切換文字
     document.querySelectorAll('[data-zh]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}`)) {
             el.textContent = el.getAttribute(`data-${currentLang}`);
         }
     });
 
-    // 2. 驅動滑塊到正確位置
-    const toggle = document.getElementById('langToggle');
-    if (toggle) {
-        toggle.setAttribute('data-active', currentLang);
-    }
+    // 2. 切換 Placeholder
+    document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
+        if (el.hasAttribute(`data-${currentLang}-placeholder`)) {
+            el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
+        }
+    });
 
-    // 3. 更新 HTML lang
+    // 3. 驅動滑塊位置
+    const toggle = document.getElementById('langToggle');
+    if (toggle) toggle.setAttribute('data-active', currentLang);
+
+    // 4. 更新 HTML lang
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 4. 重新渲染表格
+    // 5. 如果資料已載入，重新渲染表格
     if (qslRecords.length > 0) renderMainTable();
 }
 
-// 點擊切換語言（循環：繁 -> 簡 -> 英 -> 日 -> 繁）
-document.getElementById('langToggle')?.addEventListener('click', () => {
-    const langs = ['zh', 'cn', 'en', 'ja'];
-    let idx = langs.indexOf(currentLang);
-    idx = (idx + 1) % langs.length;
-    currentLang = langs[idx];
-    
-    localStorage.setItem('site_lang', currentLang);
-    applyLanguage();
-});
-
-// ============================================================
-// 狀態判斷與翻譯
-// ============================================================
 function computeQslStatus(r) {
     const t = {
         zh: { none: '未申請', pending: '待處理', paper: '已收到紙卡', eqsl: '已收到電子卡', sent: '已發出紙卡', completed: '已交換完成', not_needed: '無需換卡', both: '雙向完成', rcvd: '已收到', snt: '已發出' },
@@ -91,9 +87,6 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// ============================================================
-// 取得資料與渲染表格
-// ============================================================
 async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
@@ -147,7 +140,6 @@ function renderMainTable() {
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             }
             
-            // 備註中「衛星通聯」的多語系翻譯
             const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星交信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
         }
@@ -166,13 +158,9 @@ function renderMainTable() {
     }).join('');
 }
 
-// ============================================================
-// 初始化
-// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('qsoTableBody')) return;
 
-    // 先套用語言設定
     applyLanguage();
 
     const lb = document.getElementById('lightbox');
