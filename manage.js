@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯
+   manage.js - 管理員後台完整邏輯 (包含圖片刪除與版本檢測)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -83,7 +83,7 @@ function checkUser() {
 }
 
 // ============================================================
-// 網頁版本檢測 (CF 更新檢查) - 核心檔案大小比對法
+// 網頁版本檢測 (CF 更新檢查)
 // ============================================================
 async function checkUpdate() {
     const statusEl = document.getElementById('updateStatus');
@@ -93,35 +93,27 @@ async function checkUpdate() {
     btn.disabled = true;
 
     try {
-        // 我們要檢查的核心檔案清單 (如果你有其他 JS/CSS 也可以加進來)
         const filesToCheck = ['manage.js', 'manage.html', 'style.css'];
         let totalServerBytes = 0;
 
-        // 1. 去伺服器抓取這些檔案的最新大小 (加上時間戳避開快取)
         for (const file of filesToCheck) {
             const response = await fetch(`${file}?t=${new Date().getTime()}`, { cache: 'no-store' });
             const text = await response.text();
             totalServerBytes += text.length;
         }
 
-        // 2. 將伺服器最新的大小存到 sessionStorage (只在這次打開網頁時記住)
         const lastKnownBytes = sessionStorage.getItem('lastServerBytes');
 
         if (!lastKnownBytes) {
-            // 如果是剛打開網頁第一次點擊，先記錄下來，作為基準
             sessionStorage.setItem('lastServerBytes', totalServerBytes);
-            statusEl.innerHTML = `📌 <b>已建立基準點</b><br>目前檔案總大小：${(totalServerBytes / 1024).toFixed(1)} KB<br>未來如果檔案更新，這裡會通知您。`;
+            statusEl.innerHTML = `📌 <b>已建立基準點</b><br>目前檔案總大小：${(totalServerBytes / 1024).toFixed(1)} KB`;
             statusEl.style.color = '#5a6e85';
         } else {
-            // 3. 進行比對
             const diff = Math.abs(totalServerBytes - parseInt(lastKnownBytes, 10));
             
-            // 誤差超過 10 個位元組 (Bytes) 就當作有更新
             if (diff > 10) {
                 statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案大小已改變。<br>請重新整理載入最新畫面。`;
                 statusEl.style.color = '#0e6b3e';
-                
-                // 更新基準點，避免重新整理前無限跳出
                 sessionStorage.setItem('lastServerBytes', totalServerBytes);
             } else {
                 statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>核心檔案大小未改變。`;
@@ -129,16 +121,14 @@ async function checkUpdate() {
             }
         }
     } catch (error) {
-        console.error('檢查更新失敗', error);
         statusEl.innerHTML = '❌ 檢查失敗，請確認網路連線。';
         statusEl.style.color = '#b03030';
     }
-
     btn.disabled = false;
 }
 
 // ============================================================
-// 雲端空間監測 (改用資料庫統計，避開 Supabase Storage 快取)
+// 雲端空間監測 (由資料庫計算)
 // ============================================================
 async function calculateStorageUsage() {
     const dbBar = document.getElementById('dbUsageBar');
@@ -150,7 +140,6 @@ async function calculateStorageUsage() {
     try {
         const { data: allRecords, error } = await _supabase.from('qsl_records').select('*');
         if (!error && allRecords) {
-            // 1. 計算資料庫文字大小
             const jsonString = JSON.stringify(allRecords);
             const bytes = new Blob([jsonString]).size;
             const mb = bytes / (1024 * 1024);
@@ -158,25 +147,18 @@ async function calculateStorageUsage() {
             dbBar.style.width = `${Math.max(percent, 0.5)}%`;
             dbText.textContent = `${mb.toFixed(2)} MB / 500 MB (約 ${percent.toFixed(2)}%)`;
 
-            // 2. 計算圖片 (改由資料庫紀錄來計算，防呆避開 Storage API 快取)
             let imgCount = 0;
             allRecords.forEach(r => {
                 if (r.receivedImg && r.receivedImg.trim() !== '') imgCount++;
                 if (r.sentImg && r.sentImg.trim() !== '') imgCount++;
             });
 
-            // 因為我們不知道精確大小，用「張數」來估算（假設每張 150KB）
             const estimatedBytes = imgCount * 150 * 1024;
             const estMb = estimatedBytes / (1024 * 1024);
             const estPercent = Math.min((estMb / 1000) * 100, 100);
             
             stBar.style.width = `${Math.max(estPercent, 0.5)}%`;
-            
-            if (imgCount === 0) {
-                stText.textContent = `0.00 MB / 1000 MB (約 0.00%)`;
-            } else {
-                stText.textContent = `已連結 ${imgCount} 張圖片 (估算約 ${estMb.toFixed(2)} MB)`;
-            }
+            stText.textContent = imgCount === 0 ? `0.00 MB / 1000 MB` : `已連結 ${imgCount} 張圖片 (估算約 ${estMb.toFixed(2)} MB)`;
         }
     } catch (e) { 
         dbText.textContent = '無法估算'; 
@@ -209,7 +191,7 @@ async function renderAdminTable() {
                 <div style="margin-bottom: 10px; padding: 10px; background: #f8fbfe; border-radius: 8px; border: 1px solid #e0e9f2; position: relative;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                         <div><strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>${statusHtml}</div>
-                        <button onclick="deleteRequest(${r.id}, ${idx})" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>
+                        <button onclick="deleteRequest(${r.id}, ${idx})" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除申請</button>
                     </div>
                     <div style="font-size:0.85rem; color:#333; margin-bottom:8px; line-height:1.4;">
                         <strong>收件人：</strong>${escapeHtml(req.shipName)}<br>
@@ -224,17 +206,22 @@ async function renderAdminTable() {
             }).join('');
         }
 
+        // 收到圖片區塊
         const recvHtml = `
-            <div class="upload-btns" style="margin-bottom:6px;">
+            <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; gap:6px;">
                 <label for="recv-${r.id}">📥 收到</label>
                 <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
-                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg}')">` : '<span style="color:#b8cee4; font-size:0.8rem;">未上傳</span>'}
+                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg}')">` : ''}
+                ${r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>` : ''}
             </div>`;
+
+        // 發出圖片區塊
         const sentHtml = `
-            <div class="upload-btns">
+            <div class="upload-btns" style="display:flex; align-items:center; gap:6px;">
                 <label for="sent-${r.id}">📤 發出</label>
                 <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
-                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg}')">` : '<span style="color:#b8cee4; font-size:0.8rem;">未上傳</span>'}
+                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg}')">` : ''}
+                ${r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>` : ''}
             </div>`;
 
         return `<tr>
@@ -246,6 +233,47 @@ async function renderAdminTable() {
             <td>${recvHtml}${sentHtml}</td>
         </tr>`;
     }).join('');
+}
+
+// ---------- 刪除單筆圖片 (從 Storage 與資料庫移除) ----------
+async function deleteQslImage(recordId, type) {
+    if (!confirm(`確定要刪除這張「${type === 'received' ? '收到' : '發出'}」的 QSL 圖片嗎？`)) return;
+
+    // 1. 從資料庫取得該圖片的網址
+    const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('receivedImg, sentImg').eq('id', recordId).single();
+    if (fetchError || !record) { showToast('❌ 找不到紀錄'); return; }
+
+    const imgUrl = type === 'received' ? record.receivedImg : record.sentImg;
+    if (!imgUrl) return;
+
+    // 2. 解析檔名，準備從 Storage 刪除實體檔案
+    try {
+        // 網址格式通常長這樣：https://.../storage/v1/object/public/qsl-images/12345.jpg
+        // 我們把最後面的檔名切出來
+        const fileName = imgUrl.split('/').pop();
+        
+        // 執行 Storage 刪除
+        if (fileName) {
+            await _supabase.storage.from('qsl-images').remove([fileName]);
+        }
+    } catch (e) {
+        console.error('Storage 實體檔案刪除失敗:', e);
+    }
+
+    // 3. 清空資料庫欄位
+    const updateData = {};
+    updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
+
+    const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
+
+    if (dbError) {
+        showToast('❌ 刪除失敗');
+        console.error(dbError);
+    } else {
+        showToast('🗑️ 圖片已刪除');
+        renderAdminTable();
+        calculateStorageUsage(); // 重新計算空間
+    }
 }
 
 // ---------- 處理使用者的申請 ----------
