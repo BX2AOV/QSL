@@ -29,10 +29,10 @@
         <section class="card" id="loginSection">
             <h2>🔐 管理員登入</h2>
             <div class="card-sub">請輸入管理員 Email 與密碼。</div>
-            <div class="admin-login-box" style="flex-direction: column; align-items: stretch; gap: 10px;">
+            <div class="admin-login-box">
                 <input type="email" id="adminUser" placeholder="管理員 Email" autocomplete="off">
                 <input type="password" id="adminPassword" placeholder="密碼" autocomplete="off">
-                <button class="btn btn-primary" id="btnLogin" style="margin-top: 10px;">登入</button>
+                <button class="btn btn-primary" id="btnLogin">登入</button>
             </div>
         </section>
 
@@ -97,11 +97,38 @@
                 </div>
             </div>
 
-            <!-- 👇 這裡加上了搜尋框 👇 -->
-            <div class="flex-between" style="margin-top: 30px; margin-bottom: 12px; align-items: center;">
+            <!-- 👇 篩選與搜尋區塊 👇 -->
+            <div class="flex-between" style="margin-top: 30px; margin-bottom: 12px; align-items: flex-end;">
                 <h3 style="font-size:1.1rem; color:#1a3a5c; margin: 0;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
-                <div class="search-box" style="margin: 0;">
-                    <input type="text" id="adminSearchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;">
+                
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; flex: 1; justify-content: flex-end;">
+                    <!-- 狀態篩選 -->
+                    <select id="filterStatus" class="filter-select">
+                        <option value="all">所有狀態</option>
+                        <option value="none">未申請</option>
+                        <option value="pending">待處理</option>
+                        <option value="sent">已發出紙卡</option>
+                        <option value="received_paper">已收到紙卡</option>
+                        <option value="received_eqsl">已收到電子卡</option>
+                        <option value="completed">✅ 已交換完成</option>
+                        <option value="not_needed">無需換卡</option>
+                    </select>
+
+                    <!-- 模式篩選 -->
+                    <select id="filterMode" class="filter-select">
+                        <option value="all">所有模式</option>
+                        <option value="SSB">SSB</option>
+                        <option value="CW">CW</option>
+                        <option value="FM">FM</option>
+                        <option value="FT8">FT8</option>
+                        <option value="FT4">FT4</option>
+                        <option value="SAT">SAT (衛星)</option>
+                    </select>
+
+                    <!-- 搜尋框 -->
+                    <div class="search-box" style="margin: 0; width: 200px; flex: none;">
+                        <input type="text" id="adminSearchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;">
+                    </div>
                 </div>
             </div>
             
