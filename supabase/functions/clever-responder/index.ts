@@ -47,7 +47,10 @@ serve(async (req) => {
   const nowSec = Math.floor(Date.now() / 1000)
   const isExpired = typeof payload?.exp === 'number' && payload.exp < nowSec
 
-  if (!payload || payload.role !== 'authenticated' || isExpired) {
+  // authenticated = 管理員登入後的 session
+  // service_role = 資料庫排程（pg_cron）用，金鑰只存在 Vault，不會外流
+  const allowedRoles = ['authenticated', 'service_role']
+  if (!payload || !allowedRoles.includes(payload.role) || isExpired) {
     return json({ error: 'forbidden' }, 403)
   }
 
