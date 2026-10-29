@@ -24,10 +24,92 @@
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="lang-switch" id="langToggle" title="Switch Language">
                     <div class="lang-slider" id="langSlider"></div>
-                    <span class="lang-option" data-lang="zh" onclick="changeLang('zh')">繁</span>
-                    <span class="lang-option" data-lang="cn" onclick="changeLang('cn')">简</span>
-                    <span class="lang-option" data-lang="en" onclick="changeLang('en')">EN</span>
-                    <span class="lang-option" data-lang="ja" onclick="changeLang('ja')">日</span>
+                    <span class="lang-option" data-lang="zh">繁</span>
+                    <span class="lang-option" data-lang="cn">简</span>
+                    <span class="lang-option" data-lang="en">EN</span>
+                    <span class="lang-option" data-lang="ja">日</span>
+                </div>
+                <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                    <span class="role-badge" data-zh="訪客" data-cn="访客" data-en="Guest" data-ja="ゲスト">訪客</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="card">
+            <div class="flex-between" style="margin-bottom: 16px;">
+                <div>
+                    <h2 data-zh="📋 通聯紀錄與 QSL 狀態" data-cn="📋 通联记录与 QSL 状态" data-en="📋 QSO Logs & QSL Status" data-ja="📋 交信記録と QSL ステータス">📋 通聯紀錄與 QSL 狀態</h2>
+                    <div class="card-sub" style="margin-bottom: 0;" data-zh="點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。" data-cn="点击缩略图可放大查看 QSL 卡图片。表格时间均为 UTC 世界标准时间。" data-en="Click on thumbnails to enlarge QSL images. All times in the table are UTC." data-ja="サムネイルをクリックするとQSLカード画像が拡大されます。表内の時刻はすべてUTC（協定世界時）です。">點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。</div>
+                </div>
+                
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;" data-zh-placeholder="搜尋呼號 (例: AOV)" data-cn-placeholder="搜索呼号 (例: AOV)" data-en-placeholder="Search Callsign (e.g. AOV)" data-ja-placeholder="コールサインを検索 (例: AOV)">
+                </div>
+            </div>
+            
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-zh="日期" data-cn="日期" data-en="Date" data-ja="日付">日期</th>
+                            <th data-zh="時間 (UTC)" data-cn="时间 (UTC)" data-en="Time (UTC)" data-ja="時間 (UTC)">時間 (UTC)</th>
+                            <th data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
+                            <th data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
+                            <th data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
+                            <!-- 👇 日文改為受領與送付 👇 -->
+                            <th data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受領 QSL">收到 QSL</th>
+                            <th data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="送付 QSL">發出 QSL</th>
+                            <th data-zh="狀態" data-cn="状态" data-en="Status" data-ja="ステータス">狀態</th>
+                            <th data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qsoTableBody">
+                        <tr><td colspan="9"><div class="empty-state" data-zh="⏳ 資料載入中..." data-cn="⏳ 数据载入中..." data-en="⏳ Loading data..." data-ja="⏳ データ読み込み中...">⏳ 資料載入中...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" id="lightboxClose">×</span>
+        <img id="lightboxImg" src="" alt="QSL 卡大圖">
+    </div>
+
+    <div id="toast" class="toast">操作成功</div>
+
+    <script src="script.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BX2AOV QSL confirm</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header-bar">
+            <div class="logo-area">
+                <span class="logo-icon">📡</span>
+                <span>BX2AOV QSL confirm</span>
+                <span class="callsign-badge">BX2AOV</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-cn="总览" data-en="Overview" data-ja="概要">總覽</a></li>
+                <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-cn="我的申请" data-en="My Requests" data-ja="申請履歴">我的申請</a></li>
+                <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-cn="管理员" data-en="Admin" data-ja="管理者">管理員</a></li>
+            </ul>
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="lang-switch" id="langToggle" title="Switch Language">
+                    <div class="lang-slider" id="langSlider"></div>
+                    <span class="lang-option" data-lang="zh">繁</span>
+                    <span class="lang-option" data-lang="cn">简</span>
+                    <span class="lang-option" data-lang="en">EN</span>
+                    <span class="lang-option" data-lang="ja">日</span>
                 </div>
                 <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
                     <span class="role-badge" data-zh="訪客" data-cn="访客" data-en="Guest" data-ja="ゲスト">訪客</span>
