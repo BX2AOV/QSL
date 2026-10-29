@@ -17,47 +17,57 @@
             </div>
             
             <ul class="nav-links">
-                <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-en="Overview">總覽</a></li>
-                <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-en="My Requests">我的申請</a></li>
-                <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-en="Admin">管理員</a></li>
+                <!-- 加入簡中與日文的 data 屬性 -->
+                <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-cn="总览" data-en="Overview" data-ja="概要">總覽</a></li>
+                <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-cn="我的申请" data-en="My Requests" data-ja="申請履歴">我的申請</a></li>
+                <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-cn="管理员" data-en="Admin" data-ja="管理者">管理員</a></li>
             </ul>
             
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <!-- 👇 新的滑動開關 👇 -->
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <!-- 👇 四國語言滑動開關 👇 -->
                 <div class="lang-switch" id="langToggle" title="切換語言 / Switch Language">
                     <div class="lang-slider"></div>
-                    <span class="lang-option" data-lang="zh">中文</span>
+                    <span class="lang-option" data-lang="zh">繁</span>
+                    <span class="lang-option" data-lang="cn">简</span>
                     <span class="lang-option" data-lang="en">EN</span>
+                    <span class="lang-option" data-lang="ja">日</span>
                 </div>
-                <!-- 👆 新的滑動開關 👆 -->
+                <!-- 👆 四國語言滑動開關 👆 -->
 
                 <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
-                    <span class="role-badge" data-zh="訪客" data-en="Guest">訪客</span>
+                    <span class="role-badge" data-zh="訪客" data-cn="访客" data-en="Guest" data-ja="ゲスト">訪客</span>
                 </div>
             </div>
         </header>
 
         <section class="card">
-            <h2 data-zh="📋 通聯紀錄與 QSL 狀態" data-en="📋 QSO Logs & QSL Status">📋 通聯紀錄與 QSL 狀態</h2>
-            <div class="card-sub" data-zh="點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。" data-en="Click on thumbnails to enlarge QSL images. All times in the table are UTC.">點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。</div>
+            <h2 data-zh="📋 通聯紀錄與 QSL 狀態" data-cn="📋 通联记录与 QSL 状态" data-en="📋 QSO Logs & QSL Status" data-ja="📋 交信記録と QSL ステータス">📋 通聯紀錄與 QSL 狀態</h2>
+            
+            <div class="card-sub" 
+                 data-zh="點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。" 
+                 data-cn="点击缩略图可放大查看 QSL 卡图片。表格时间均为 UTC 世界标准时间。" 
+                 data-en="Click on thumbnails to enlarge QSL images. All times in the table are UTC." 
+                 data-ja="サムネイルをクリックするとQSLカード画像が拡大されます。表内の時刻はすべてUTC（協定世界時）です。">
+                點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。
+            </div>
             
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th data-zh="日期" data-en="Date">日期</th>
-                            <th data-zh="時間 (UTC)" data-en="Time (UTC)">時間 (UTC)</th>
-                            <th data-zh="呼號" data-en="Callsign">呼號</th>
-                            <th data-zh="頻段" data-en="Band">頻段</th>
-                            <th data-zh="模式" data-en="Mode">模式</th>
-                            <th data-zh="收到 QSL" data-en="Rcvd QSL">收到 QSL</th>
-                            <th data-zh="發出 QSL" data-en="Sent QSL">發出 QSL</th>
-                            <th data-zh="狀態" data-en="Status">狀態</th>
-                            <th data-zh="備註" data-en="Notes">備註</th>
+                            <th data-zh="日期" data-cn="日期" data-en="Date" data-ja="日付">日期</th>
+                            <th data-zh="時間 (UTC)" data-cn="时间 (UTC)" data-en="Time (UTC)" data-ja="時間 (UTC)">時間 (UTC)</th>
+                            <th data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
+                            <th data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
+                            <th data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
+                            <th data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受信 QSL">收到 QSL</th>
+                            <th data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="発信 QSL">發出 QSL</th>
+                            <th data-zh="狀態" data-cn="状态" data-en="Status" data-ja="ステータス">狀態</th>
+                            <th data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
                         </tr>
                     </thead>
                     <tbody id="qsoTableBody">
-                        <tr><td colspan="9"><div class="empty-state" data-zh="⏳ 資料載入中..." data-en="⏳ Loading data...">⏳ 資料載入中...</div></td></tr>
+                        <tr><td colspan="9"><div class="empty-state" data-zh="⏳ 資料載入中..." data-cn="⏳ 数据载入中..." data-en="⏳ Loading data..." data-ja="⏳ データ読み込み中...">⏳ 資料載入中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
