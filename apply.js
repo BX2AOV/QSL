@@ -2,7 +2,7 @@
    apply.html 專用邏輯（完全獨立，不依賴 script.js）
    ============================================================ */
 
-// ---------- 資料庫（示範資料，可直接使用） ----------
+// ---------- 模擬資料庫 (自帶資料，確保查詢功能正常) ----------
 var qslRecords = [
     { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', note: '等待回卡', receivedImg: null, sentImg: null, requests: [] },
     { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
@@ -42,7 +42,7 @@ function computeQslStatus(r) {
     function init() {
         var btnQuery = document.getElementById('btnQuery');
         if (!btnQuery) {
-            // 不是 apply.html，直接離開
+            // 如果找不到查詢按鈕，代表不在 apply.html，直接結束
             return;
         }
 
