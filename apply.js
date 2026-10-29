@@ -113,7 +113,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function doQuery() {
         const call = queryInput.value.trim().toUpperCase();
-        if (!call) { showToast('請輸入呼號'); return; }
+        if (!call) { 
+            const hint = { zh: '請輸入呼號', cn: '请输入呼号', en: 'Please enter callsign', ja: 'コールサインを入力してください' };
+            showToast(hint[currentLang]); 
+            return; 
+        }
         
         queryCallsign = call;
         localStorage.setItem('user_callsign', queryCallsign);
@@ -212,7 +216,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (btnSubmit) {
         btnSubmit.addEventListener('click', async function() {
-            if (selectedRecordIds.size === 0) { showToast('請至少勾選一筆'); return; }
+            if (selectedRecordIds.size === 0) { 
+                const hint = { zh: '請至少勾選一筆', cn: '请至少勾选一条', en: 'Please select at least one', ja: '少なくとも1件選択してください' };
+                showToast(hint[currentLang]); 
+                return; 
+            }
             const name = document.getElementById('shipName').value.trim();
             const phone = document.getElementById('shipPhone').value.trim();
             const zip = document.getElementById('shipZip').value.trim();
@@ -281,4 +289,27 @@ document.addEventListener('DOMContentLoaded', function() {
             let cls = 'badge-pending', txt = '待處理';
             if (currentLang === 'zh') { txt = req.status === 'approved' ? '已核准' : (req.status === 'rejected' ? '已拒絕' : '待處理'); }
             if (currentLang === 'cn') { txt = req.status === 'approved' ? '已核准' : (req.status === 'rejected' ? '已拒绝' : '待处理'); }
-            if (currentLang === '
+            if (currentLang === 'en') { txt = req.status === 'approved' ? 'Approved' : (req.status === 'rejected' ? 'Rejected' : 'Pending'); }
+            if (currentLang === 'ja') { txt = req.status === 'approved' ? '承認済み' : (req.status === 'rejected' ? '拒否' : '処理待ち'); }
+            
+            if (req.status === 'approved') cls = 'badge-approved';
+            else if (req.status === 'rejected') cls = 'badge-rejected';
+
+            const shipInfo = req.shipName ? `${escapeHtml(req.shipName)} / ${escapeHtml(req.shipPhone || '—')}` : '—';
+            const addr = req.shipZip ? `${escapeHtml(req.shipZip)} ${escapeHtml(req.shipAddress)}` : '—';
+            return `<tr>
+                <td>${escapeHtml(req.requestDate)}</td>
+                <td><strong>${escapeHtml(req.record.call)}</strong></td>
+                <td>${escapeHtml(req.record.date)}</td>
+                <td>${escapeHtml(req.record.band)} / ${escapeHtml(req.record.mode)}</td>
+                <td>${shipInfo}</td>
+                <td>${escapeHtml(req.shipPhone || '—')}</td>
+                <td>${addr}</td>
+                <td><span class="${cls}">${txt}</span></td>
+            </tr>`;
+        }).join('');
+    }
+
+    btnQuery.addEventListener('click', doQuery);
+    queryInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); doQuery(); } });
+});
