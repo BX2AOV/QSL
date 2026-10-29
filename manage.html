@@ -77,7 +77,11 @@
                 <div>
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">✏️ 手動新增單筆</h3>
                     <div class="manual-form">
-                        <input type="date" id="manualDate" style="color:#5a6e85;">
+                        <!-- 新增時間輸入框 -->
+                        <div style="display:flex; gap:10px;">
+                            <input type="date" id="manualDate" style="color:#5a6e85; flex:1;">
+                            <input type="time" id="manualTime" style="color:#5a6e85; flex:1;">
+                        </div>
                         <input type="text" id="manualCall" placeholder="呼號 (例如 BM2XXX)">
                         <input type="text" id="manualBand" placeholder="頻段 (例如 20m)">
                         <input type="text" id="manualMode" placeholder="模式 (例如 SSB)">
@@ -90,17 +94,18 @@
             <!-- 管理紀錄與申請列表 -->
             <h3 style="font-size:1.1rem; margin-top: 30px; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
             <div class="table-wrapper">
-                <table style="min-width:1050px;">
+                <table style="min-width:1100px;">
                     <thead>
                         <tr>
-                            <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
+                            <!-- 新增時間欄位 -->
+                            <th>日期</th><th>時間</th><th>呼號</th><th>頻段</th><th>模式</th>
                             <th>使用者申請 (地址/電話/狀態)</th>
                             <th>通聯圖片管理</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="manageTableBody">
-                        <tr><td colspan="7"><div class="empty-state">載入中...</div></td></tr>
+                        <tr><td colspan="8"><div class="empty-state">載入中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
