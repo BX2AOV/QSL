@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯
+   manage.js - 管理員後台完整邏輯 (加入時間排序)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -15,6 +15,7 @@ const manageTableBody = document.getElementById('manageTableBody');
 
 let selectedFilesArray = [];
 
+// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -38,6 +39,7 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
+// 衛星與顯示判斷
 function getDisplayInfo(r) {
     let displayBand = r.band;
     let displayMode = r.mode;
@@ -141,7 +143,12 @@ async function renderAdminTable() {
     if (!manageTableBody) return;
     manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
 
-    const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
+    // 🌟 修改排序方式：先依日期(新到舊)，再依時間(新到舊)
+    const { data, error } = await _supabase
+        .from('qsl_records')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('time', { ascending: false });
 
     if (error) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
     if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
@@ -198,7 +205,7 @@ async function renderAdminTable() {
                 ${sentBtnHtml}
             </div>`;
 
-        // 👇 新增「已交換完成」選項 👇
+        // 狀態下拉選單
         const currentStatus = r.status || 'none';
         const statusSelect = `
             <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid #cbdae8; font-size:0.85rem; background:#fff; cursor:pointer; outline:none;">
@@ -228,6 +235,7 @@ async function renderAdminTable() {
     }).join('');
 }
 
+// 修改狀態
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
