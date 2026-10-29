@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (移除寄出天數顯示)
+   manage.js - 管理員後台完整邏輯 (包含分頁、篩選與自動狀態)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -12,10 +12,15 @@ const roleBadge = document.getElementById('roleBadge');
 const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
+const paginationContainer = document.getElementById('paginationContainer');
 
 let selectedFilesArray = [];
 let allRecords = []; 
 let filteredRecords = []; 
+
+// 🌟 分頁變數 (每頁 20 筆)
+let currentPage = 1;
+const itemsPerPage = 20;
 
 // 共用工具
 function showToast(msg) { 
@@ -165,7 +170,7 @@ async function calculateStorageUsage() {
 }
 
 // ============================================================
-// 渲染管理表格與操作
+// 渲染管理表格與操作 (加入分頁)
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
@@ -187,6 +192,7 @@ async function renderAdminTable() {
     const filterStatus = document.getElementById('filterStatus')?.value || 'all';
     const filterMode = document.getElementById('filterMode')?.value || 'all';
 
+    // 執行過濾
     filteredRecords = allRecords.filter(r => {
         const matchKeyword = !keyword || r.call.includes(keyword) || (r.date && r.date.includes(keyword)) || (r.band && r.band.toUpperCase().includes(keyword));
         const matchStatus = (filterStatus === 'all') || (r.status === filterStatus || (!r.status && filterStatus === 'none'));
@@ -197,10 +203,20 @@ async function renderAdminTable() {
 
     if (filteredRecords.length === 0) {
         manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">🔍 找不到符合條件的紀錄</div></td></tr>';
+        if(paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
 
-    manageTableBody.innerHTML = filteredRecords.map(r => {
+    // 🌟 計算分頁範圍
+    const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
+
+    manageTableBody.innerHTML = paginatedRecords.map(r => {
         const display = getDisplayInfo(r); 
 
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
@@ -237,7 +253,6 @@ async function renderAdminTable() {
         const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
         
         let sentReminderHtml = '';
-        // 🌟 只有滿 30 天才顯示橘色提醒，移除寄出天數顯示
         if (r.sentImg && r.sentDate) {
             const days = getDaysSince(r.sentDate);
             if (days >= 30) {
@@ -248,7 +263,6 @@ async function renderAdminTable() {
             }
         }
 
-        // 如果狀態是完成，顯示完成日期與即將刪除的提示
         if (r.status === 'completed' && r.completedDate) {
             const daysSinceComplete = getDaysSince(r.completedDate);
             const daysLeft = 30 - daysSinceComplete;
@@ -303,8 +317,52 @@ async function renderAdminTable() {
             </td>
         </tr>`;
     }).join('');
+
+    // 🌟 渲染分頁按鈕
+    renderPagination(totalPages);
 }
 
+// ============================================================
+// 🌟 分頁按鈕渲染
+// ============================================================
+function renderPagination(totalPages) {
+    if (!paginationContainer) return;
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
+    const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
+
+    paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
+    paginationContainer.innerHTML = `
+        <button id="btnAdminPrev" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
+        <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">第 ${currentPage} / ${totalPages} 頁</span>
+        <button id="btnAdminNext" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
+    `;
+
+    document.getElementById('btnAdminPrev').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderAdminTable();
+            document.querySelector('.table-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    document.getElementById('btnAdminNext').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderAdminTable();
+            document.querySelector('.table-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+}
+
+// ============================================================
+// 其他操作 (狀態修改、刪除、上傳圖片)
+// ============================================================
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     
@@ -348,7 +406,6 @@ async function deleteQslImage(recordId, type) {
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
     if (type === 'sent') updateData.sentDate = null;
     
-    // 如果刪除了圖片，狀態也要跟著退回，取消 completedDate
     const currentRecord = allRecords.find(r => r.id === recordId);
     if (currentRecord) {
         if (type === 'received' && currentRecord.status === 'completed') {
@@ -395,7 +452,7 @@ async function rejectRequest(recordId, reqIndex) {
 }
 
 // ============================================================
-// 🌟 圖片上傳與自動判斷完成
+// 圖片上傳與自動判斷完成
 // ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
@@ -443,31 +500,26 @@ async function handleQslImageUpload(recordId, type, event) {
             const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
             const updateData = {};
             
-            // 取得目前這筆紀錄的狀態
             const currentRecord = allRecords.find(r => r.id === recordId);
             let willBeCompleted = false;
 
             if (type === 'received') {
                 updateData.receivedImg = publicUrl;
-                // 如果發出圖片已經存在，就代表雙向完成
                 if (currentRecord && currentRecord.sentImg) {
                     willBeCompleted = true;
                 }
             } else if (type === 'sent') {
                 updateData.sentImg = publicUrl;
                 updateData.sentDate = new Date().toISOString();
-                // 如果收到圖片已經存在，就代表雙向完成
                 if (currentRecord && currentRecord.receivedImg) {
                     willBeCompleted = true;
                 }
             }
 
-            // 🌟 如果雙方都有圖片，自動改成「已交換完成」並記錄完成時間
             if (willBeCompleted) {
                 updateData.status = 'completed';
                 updateData.completedDate = new Date().toISOString();
             } else {
-                // 如果只有單邊圖片，根據上傳的類型給予對應狀態
                 if (type === 'sent') {
                     updateData.status = 'sent';
                 } else if (type === 'received') {
@@ -685,9 +737,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
-    document.getElementById('adminSearchInput')?.addEventListener('input', function() { renderAdminTable(); });
-    document.getElementById('filterStatus')?.addEventListener('change', function() { renderAdminTable(); });
-    document.getElementById('filterMode')?.addEventListener('change', function() { renderAdminTable(); });
+    document.getElementById('adminSearchInput')?.addEventListener('input', function() { currentPage = 1; renderAdminTable(); });
+    document.getElementById('filterStatus')?.addEventListener('change', function() { currentPage = 1; renderAdminTable(); });
+    document.getElementById('filterMode')?.addEventListener('change', function() { currentPage = 1; renderAdminTable(); });
 
     document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
         const btn = this;
