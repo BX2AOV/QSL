@@ -23,22 +23,12 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
-// 計算 QSL 狀態 (包含未申請判斷)
+// 計算 QSL 狀態
 function computeQslStatus(r) {
-    // 1. 如果有收到跟發出的圖片，代表雙向完成
     if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: '雙向完成' };
-    // 2. 如果只有收到圖片
     if (r.receivedImg) return { cls: 'badge-received', text: '已收到' };
-    // 3. 如果只有發出圖片
     if (r.sentImg) return { cls: 'badge-sent', text: '已發出' };
-    
-    // 4. 如果沒有圖片，檢查有沒有人提出申請
-    if (r.requests && r.requests.length > 0) {
-        // 如果有人申請，但還沒傳圖片 (管理員還沒處理)
-        return { cls: 'badge-pending', text: '待處理' };
-    }
-    
-    // 5. 如果沒圖片，也沒人申請
+    if (r.requests && r.requests.length > 0) return { cls: 'badge-pending', text: '待處理' };
     return { cls: 'badge-none', text: '未申請' };
 }
 
@@ -85,15 +75,30 @@ function renderMainTable() {
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         
+        let displayBand = r.band;
+        let displayMode = r.mode;
+        let displayNote = r.note || '—';
+
+        // 偵測備註欄位是否有 [衛星名稱]
+        if (r.note) {
+            const satMatch = r.note.match(/^\[(.*?)\]/);
+            if (satMatch && satMatch[1]) {
+                displayBand = satMatch[1]; // 把頻段換成衛星名稱
+                displayMode = 'SAT';       // 把模式換成 SAT
+                // 把備註前面的 [XX] 拿掉，只留後面的文字
+                displayNote = r.note.replace(/^\[.*?\]\s*/, '') || '—';
+            }
+        }
+
         return `<tr>
             <td>${escapeHtml(r.date)}</td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
-            <td>${escapeHtml(r.band)}</td>
-            <td>${escapeHtml(r.mode)}</td>
+            <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
+            <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
             <td>${recvImg}</td>
             <td>${sentImg}</td>
             <td><span class="${st.cls}">${st.text}</span></td>
-            <td>${escapeHtml(r.note || '—')}</td>
+            <td>${escapeHtml(displayNote)}</td>
         </tr>`;
     }).join('');
 }
