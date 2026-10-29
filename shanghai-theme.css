@@ -240,6 +240,38 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #c5a059
 }
 .role-badge.admin { background: #722f37; color: #f5f1e6; border-color: #4a1e23; }
 
+/* ---------- QSL 状态徽章：旧式账簿标签 ---------- */
+.badge-pending { background: #c5a059; color: #0a0a0a; }
+.badge-approved { background: #2f4f4f; color: #f5f1e6; }
+.badge-rejected { background: #722f37; color: #f5f1e6; }
+.badge-sent { background: #e6c200; color: #0a0a0a; }
+.badge-received { background: #c5a059; color: #0a0a0a; }
+.badge-completed { background: #722f37; color: #f5f1e6; }
+.badge-completed-dark { background: #4a1e23; color: #f5f1e6; }
+.badge-not-needed { background: #8c7a5e; color: #f5f1e6; }
+.badge-none { background: #d9cfb8; color: #3e2723; }
+
+.badge-pending,
+.badge-approved,
+.badge-rejected,
+.badge-sent,
+.badge-received,
+.badge-completed,
+.badge-completed-dark,
+.badge-not-needed,
+.badge-none {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  border: 1px solid rgba(0,0,0,0.2);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* ---------- 轻提示 ---------- */
 .toast {
   background: #722f37; color: #f5f1e6; border: 1px solid #4a1e23;
@@ -288,6 +320,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #c5a059
   transform: translate(-4px, -4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 8px 8px 0 rgba(0,0,0,0.4);
 }
 .admin-login-box .btn:active { transform: translate(2px, 2px); box-shadow: inset 0 3px 8px rgba(0,0,0,0.35); }
+
+/* ---------- 解鎖按鈕 ---------- */
+.btn-unlock {
+  background: #722f37; color: #f5f1e6; border: 1px solid #4a1e23; border-radius: 2px;
+  font-weight: 800; letter-spacing: 1px; padding: 4px 12px; font-size: 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 3px 3px 0 rgba(0,0,0,0.25);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  text-transform: uppercase; text-shadow: 1px 1px 0 #000;
+  transition: all 0.12s ease;
+}
+.btn-unlock:hover {
+  background: #4a1e23; transform: translate(-2px, -2px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 5px 5px 0 rgba(0,0,0,0.35);
+}
+.btn-unlock:active { transform: translate(1px, 1px); box-shadow: inset 0 2px 6px rgba(0,0,0,0.3); }
+.btn-unlock:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(0.7); }
+
+.lock-tag {
+  color: #b03030; font-size: 0.8rem; font-weight: 700;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+}
 
 /* ---------- 響應式 ---------- */
 @media (max-width: 768px) {

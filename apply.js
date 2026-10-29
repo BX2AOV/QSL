@@ -400,8 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // 未解鎖顯示上鎖按鈕
                 statusHtml = `
-                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span style="color:#b03030; font-size:0.8rem;">🔒 已上鎖</span></div>
-                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}" style="background:#0b2a4a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">🔓 解鎖詳情</button>
+                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span class="lock-tag">🔒 已上鎖</span></div>
+                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}">🔓 解鎖詳情</button>
                 `;
             }
 
@@ -419,8 +419,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.btn-unlock').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const id = this.dataset.id;
+                const btn = this;
+                const originalText = btn.textContent;
+                
                 const pwd = prompt('請輸入您當初設定的查詢密碼：');
                 if (!pwd) return;
+                
+                btn.textContent = '驗證中...';
+                btn.disabled = true;
                 
                 // 呼叫單筆驗證
                 const { data, error } = await _supabase.rpc('verify_qsl_password', { 
@@ -429,11 +435,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     p_password: pwd
                 });
 
+                btn.textContent = originalText;
+                btn.disabled = false;
+
                 if (error) {
-                    showToast('❌ 驗證失敗，請看 Console');
-                    console.error(error);
+                    showToast('❌ 驗證失敗（請檢查 Console 或聯絡管理員）');
+                    console.error('verify_qsl_password error:', error);
                 } else if (data && data.success) {
-                    showToast('✅ 解鎖成功');
+                    showToast('✅ 解鎖成功，地址與手機已顯示');
                     unlockedRecords[id] = {
                         ship_addr: data.ship_addr,
                         ship_zip: data.ship_zip,
@@ -441,7 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     };
                     renderMyRequests(); // 重新渲染
                 } else {
-                    showToast('❌ 密碼錯誤');
+                    showToast('❌ 密碼錯誤，請重新輸入');
                 }
             });
         });
