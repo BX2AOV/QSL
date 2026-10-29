@@ -1,22 +1,29 @@
 /* ============================================================
-   BX2AOV QSL confirm - 共用邏輯
-   包含：模擬資料庫、工具函式、首頁（總覽/管理員）邏輯
-   注意：qslRecords、showToast、escapeHtml、computeQslStatus
-        必須是全域，供 apply.js 使用
+   BX2AOV QSL confirm - 主邏輯 (包含首頁總覽與管理員後台)
    ============================================================ */
 
-// ---------- 模擬資料庫（全域，供 apply.js 讀取） ----------
+// ---------- 全域資料庫 ----------
 let qslRecords = [
     { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', note: '等待回卡', receivedImg: null, sentImg: null, requests: [] },
     { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
     { id: 3, date: '2025-01-15', call: 'BM2ABC', band: '40m', mode: 'CW', note: '已寄出', receivedImg: null, sentImg: null, requests: [] },
     { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', note: '透過 Bureau', receivedImg: null, sentImg: null, requests: [] },
-    { id: 5, date: '2025-01-20', call: 'JP1XYZ', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] },
+    { id: 5, date: '2025-01-20', call: 'JP1XYZ', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] }
 ];
 
-// ---------- 全域工具函式 ----------
+// ---------- 全域狀態 ----------
+let isAdmin = false;
+let selectedAdifFile = null;
+let currentTab = 'dashboard';
+
+// ---------- 全域 DOM 選取器 ----------
+const $ = (id) => document.getElementById(id);
+
+// ============================================================
+// 全域共用工具函式
+// ============================================================
 function showToast(msg) {
-    const toastEl = document.getElementById('toast');
+    const toastEl = $('toast');
     if (!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.add('show');
@@ -40,27 +47,23 @@ function computeQslStatus(r) {
 
 function openLightbox(src) {
     if (!src) return;
-    const lb = document.getElementById('lightbox');
-    const img = document.getElementById('lightboxImg');
+    const lb = $('lightbox');
+    const img = $('lightboxImg');
     if (!lb || !img) return;
     img.src = src;
     lb.classList.add('show');
 }
 
 function closeLightbox() {
-    const lb = document.getElementById('lightbox');
-    const img = document.getElementById('lightboxImg');
+    const lb = $('lightbox');
+    const img = $('lightboxImg');
     if (lb) lb.classList.remove('show');
     if (img) img.src = '';
 }
 
-// ---------- 首頁（index.html）專用邏輯 ----------
-let isAdmin = false;
-let selectedAdifFile = null;
-let currentTab = 'dashboard';
-
-const $ = (id) => document.getElementById(id);
-
+// ============================================================
+// 分頁切換與管理員登入
+// ============================================================
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.nav-tab').forEach(a => {
@@ -89,6 +92,7 @@ function adminSectionVisible(show) {
 
 function loginAdmin() {
     const pwd = $('adminPassword').value.trim();
+    // 預設密碼為 admin123
     if (pwd === 'admin123') {
         isAdmin = true;
         $('adminLoginBox').style.display = 'none';
@@ -114,6 +118,9 @@ function logoutAdmin() {
     showToast('👋 已登出管理員');
 }
 
+// ============================================================
+// 渲染邏輯
+// ============================================================
 function renderCurrentTab() {
     if (currentTab === 'dashboard') {
         renderMainTable();
@@ -130,6 +137,7 @@ function imgCellHtml(imgData, altText) {
     return `<div class="qsl-thumb-empty">—</div>`;
 }
 
+// 渲染首頁總覽表格
 function renderMainTable() {
     const tbody = $('qsoTableBody');
     if (!tbody) return;
@@ -153,6 +161,7 @@ function renderMainTable() {
     }).join('');
 }
 
+// 渲染管理員後台表格
 function renderAdminTable() {
     const tbody = $('adminManageBody');
     if (!tbody) return;
@@ -163,6 +172,7 @@ function renderAdminTable() {
     }
 
     tbody.innerHTML = qslRecords.map(r => {
+        // 收到 QSL 上傳區塊
         const recvHtml = `
             <div class="upload-btns">
                 <label for="recv-${r.id}">📥 上傳</label>
@@ -170,6 +180,7 @@ function renderAdminTable() {
                 ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
             </div>`;
 
+        // 發出 QSL 上傳區塊
         const sentHtml = `
             <div class="upload-btns">
                 <label for="sent-${r.id}">📤 上傳</label>
@@ -177,6 +188,7 @@ function renderAdminTable() {
                 ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
             </div>`;
 
+        // 申請處理區塊
         let reqHtml = '—';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
@@ -190,9 +202,19 @@ function renderAdminTable() {
                 } else if (req.status === 'rejected') {
                     statusHtml = `<span class="badge-rejected">已拒絕</span>`;
                 }
-                return `<div style="margin-bottom:4px; font-size:0.8rem;">
-                    <span style="color:#5a6e85;">${escapeHtml(req.userCall)}</span>
-                    ${statusHtml}
+                
+                // 如果有收件資訊，可以顯示在 Tooltip 或直接寫出來
+                let shipDetail = '';
+                if (req.shipName) {
+                    shipDetail = `<div style="font-size:0.7rem; color:#888; margin-top:2px;">${escapeHtml(req.shipName)} / ${escapeHtml(req.shipPhone)}</div>`;
+                }
+
+                return `<div style="margin-bottom:8px; font-size:0.8rem; padding-bottom:6px; border-bottom:1px dashed #eee;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                        <strong style="color:#7b3fa0;">${escapeHtml(req.userCall)}</strong>
+                        ${statusHtml}
+                    </div>
+                    ${shipDetail}
                 </div>`;
             }).join('');
         }
@@ -210,26 +232,38 @@ function renderAdminTable() {
     }).join('');
 }
 
+// ============================================================
+// 管理員操作：上傳圖片、核准申請、刪除、新增
+// ============================================================
 function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
+
     if (!file.type.startsWith('image/')) {
         showToast('⚠️ 請上傳圖片檔案');
         event.target.value = '';
         return;
     }
+
+    // 限制 800KB 以防 localStorage 爆掉，但這裡是記憶體暫存，稍微限制一下比較好
     if (file.size > 800 * 1024) {
         showToast('⚠️ 圖片超過 800KB，請壓縮後再上傳');
         event.target.value = '';
         return;
     }
+
     const reader = new FileReader();
     reader.onload = function(e) {
         const base64 = e.target.result;
         const record = qslRecords.find(r => r.id === recordId);
         if (!record) return;
-        if (type === 'received') record.receivedImg = base64;
-        else if (type === 'sent') record.sentImg = base64;
+
+        if (type === 'received') {
+            record.receivedImg = base64;
+        } else if (type === 'sent') {
+            record.sentImg = base64;
+        }
+
         renderAdminTable();
         showToast(`✅ 已上傳 ${type === 'received' ? '收到' : '發出'} QSL 圖片`);
         event.target.value = '';
@@ -274,7 +308,7 @@ function resetToDemo() {
         { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
         { id: 3, date: '2025-01-15', call: 'BM2ABC', band: '40m', mode: 'CW', note: '已寄出', receivedImg: null, sentImg: null, requests: [] },
         { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', note: '透過 Bureau', receivedImg: null, sentImg: null, requests: [] },
-        { id: 5, date: '2025-01-20', call: 'JP1XYZ', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] },
+        { id: 5, date: '2025-01-20', call: 'JP1XYZ', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] }
     ];
     renderAdminTable();
     showToast('已重置為示範資料');
@@ -313,6 +347,9 @@ function addManualRecord() {
     showToast(`✅ 已新增通聯紀錄 ${call.toUpperCase()}`);
 }
 
+// ============================================================
+// ADIF 檔案解析與匯入
+// ============================================================
 function handleAdifSelect(event) {
     const file = event.target.files[0];
     if (file) {
@@ -339,6 +376,7 @@ function parseADIF(content) {
         if (tagStart === -1) break;
         const tagEnd = content.indexOf('>', tagStart);
         if (tagEnd === -1) break;
+        
         const tagFull = content.substring(tagStart + 1, tagEnd).trim();
         const parts = tagFull.split(':');
         const fieldName = parts[0].trim().toUpperCase();
@@ -421,11 +459,14 @@ function uploadADIF() {
     reader.readAsText(selectedAdifFile);
 }
 
-// ---------- 首頁初始化 ----------
+// ============================================================
+// 首頁初始化事件綁定 (僅在 index.html 執行)
+// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
-    // 只在 index.html 執行（檢查是否有 qsoTableBody）
+    // 如果找不到首頁的專屬元素 (例如 qsoTableBody)，代表目前在別頁，直接返回
     if (!document.getElementById('qsoTableBody')) return;
 
+    // 分頁切換標籤
     document.querySelectorAll('.nav-tab').forEach(a => {
         if (a.dataset.tab) {
             a.addEventListener('click', (e) => {
@@ -435,6 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // 管理員登入相關
     const btnLogin = $('btnLogin');
     if (btnLogin) btnLogin.addEventListener('click', loginAdmin);
     const pwd = $('adminPassword');
@@ -444,6 +486,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnLogout = $('btnLogout');
     if (btnLogout) btnLogout.addEventListener('click', logoutAdmin);
 
+    // ADIF 與手動新增
     const adif = $('adifFile');
     if (adif) adif.addEventListener('change', handleAdifSelect);
     const btnAdif = $('btnUploadADIF');
@@ -452,15 +495,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnAdd = $('btnAddManual');
     if (btnAdd) btnAdd.addEventListener('click', addManualRecord);
 
+    // 清除與重置
     const btnClear = $('btnClearAll');
     if (btnClear) btnClear.addEventListener('click', clearAllRecords);
     const btnReset = $('btnResetDemo');
     if (btnReset) btnReset.addEventListener('click', resetToDemo);
 
+    // 燈箱點擊關閉
     const lb = $('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     const lbClose = $('lightboxClose');
-    if (lbClose) lbClose.addEventListener('click', closeLightbox);
+    if (lbClose) lbClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLightbox();
+    });
 
+    // 初始渲染首頁表格
     renderMainTable();
 });
