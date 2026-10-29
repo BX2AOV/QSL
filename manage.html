@@ -76,7 +76,6 @@
                         <button class="btn btn-outline" id="btnClearFiles" style="display:none;">清除</button>
                     </div>
                     
-                    <!-- 👇 新增的 LoTW 同步按鈕 👇 -->
                     <button class="btn btn-primary" id="btnSyncLoTW" style="margin-top: 10px; width: 100%; background: #0e6b3e;">
                         🔄 從 LoTW 自動同步已確認卡片
                     </button>
@@ -98,9 +97,12 @@
                 </div>
             </div>
 
-            <div class="flex-between" style="margin-top: 30px; margin-bottom: 12px;">
-                <h3 style="font-size:1.1rem; color:#1a3a5c;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
-                <button class="btn btn-outline btn-sm" id="btnTestReminder" style="font-size: 0.8rem; padding: 6px 12px;">🧪 測試 30 天提醒</button>
+            <!-- 👇 這裡加上了搜尋框 👇 -->
+            <div class="flex-between" style="margin-top: 30px; margin-bottom: 12px; align-items: center;">
+                <h3 style="font-size:1.1rem; color:#1a3a5c; margin: 0;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
+                <div class="search-box" style="margin: 0;">
+                    <input type="text" id="adminSearchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;">
+                </div>
             </div>
             
             <div class="table-wrapper">
