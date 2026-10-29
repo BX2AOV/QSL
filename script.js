@@ -1,5 +1,5 @@
 /* ============================================================
-   BX2AOV QSL confirm - 主邏輯（分頁版）
+   BX2AOV QSL confirm - 主邏輯（雙頁面版）
    ============================================================ */
 
 // ---------- 常數 ----------
@@ -47,6 +47,7 @@ function saveData(records) {
 // ============================================================
 function showToast(msg) {
     const toastEl = $('toast');
+    if (!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.add('show');
     clearTimeout(window.toastTimer);
@@ -62,17 +63,22 @@ function escapeHtml(text) {
 
 function openLightbox(src) {
     if (!src) return;
-    $('lightboxImg').src = src;
-    $('lightbox').classList.add('show');
+    const lb = $('lightbox');
+    const img = $('lightboxImg');
+    if (!lb || !img) return;
+    img.src = src;
+    lb.classList.add('show');
 }
 
 function closeLightbox() {
-    $('lightbox').classList.remove('show');
-    $('lightboxImg').src = '';
+    const lb = $('lightbox');
+    const img = $('lightboxImg');
+    if (lb) lb.classList.remove('show');
+    if (img) img.src = '';
 }
 
 // ============================================================
-// 分頁切換
+// 分頁切換（只處理 index.html 內的管理員分頁）
 // ============================================================
 function switchTab(tabName) {
     currentTab = tabName;
@@ -99,10 +105,11 @@ function switchTab(tabName) {
 }
 
 function adminSectionVisible(show) {
-    // 依登入狀態顯示登入框或管理內容
     if (show) {
-        $('adminLoginBox').style.display = isAdmin ? 'none' : 'flex';
-        $('adminContent').style.display = isAdmin ? 'block' : 'none';
+        const loginBox = $('adminLoginBox');
+        const content = $('adminContent');
+        if (loginBox) loginBox.style.display = isAdmin ? 'none' : 'flex';
+        if (content) content.style.display = isAdmin ? 'block' : 'none';
     }
 }
 
@@ -111,6 +118,7 @@ function adminSectionVisible(show) {
 // ============================================================
 function setUserCallsign() {
     const input = $('userCallsignInput');
+    if (!input) return;
     const v = input.value.trim().toUpperCase();
     if (!v) { showToast('請輸入呼號'); return; }
     userCallsign = v;
@@ -122,9 +130,11 @@ function setUserCallsign() {
 
 function updateUserCallsignDisplay() {
     const display = $('currentCallsignDisplay');
+    if (!display) return;
     if (userCallsign) {
         display.innerHTML = `<span class="callsign-tag">目前呼號：${escapeHtml(userCallsign)}</span>`;
-        $('userCallsignInput').value = userCallsign;
+        const input = $('userCallsignInput');
+        if (input) input.value = userCallsign;
     } else {
         display.innerHTML = '<span style="color:#b8cee4;">尚未設定呼號</span>';
     }
@@ -166,8 +176,6 @@ function logoutAdmin() {
 function renderCurrentTab() {
     if (currentTab === 'dashboard') {
         renderMainTable();
-    } else if (currentTab === 'my-requests') {
-        renderMyRequests();
     } else if (currentTab === 'admin-panel' && isAdmin) {
         renderAdminTable();
     }
@@ -228,7 +236,7 @@ function renderMyRequests() {
     if (!tbody) return;
 
     if (!userCallsign) {
-        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">請先設定您的呼號</div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">請先在總覽設定您的呼號</div></td></tr>`;
         return;
     }
 
@@ -268,7 +276,6 @@ function renderAdminTable() {
     }
 
     tbody.innerHTML = qslRecords.map(r => {
-        // 收到上傳
         const recvHtml = `
             <div class="upload-btns">
                 <label for="recv-${r.id}">📥 上傳</label>
@@ -276,7 +283,6 @@ function renderAdminTable() {
                 ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
             </div>`;
 
-        // 發出上傳
         const sentHtml = `
             <div class="upload-btns">
                 <label for="sent-${r.id}">📤 上傳</label>
@@ -284,7 +290,6 @@ function renderAdminTable() {
                 ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
             </div>`;
 
-        // 申請處理
         let reqHtml = '—';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
@@ -468,10 +473,12 @@ function handleAdifSelect(event) {
     const file = event.target.files[0];
     if (file) {
         selectedAdifFile = file;
-        $('adifFileNameDisplay').textContent = `已選擇：${file.name}`;
+        const display = $('adifFileNameDisplay');
+        if (display) display.textContent = `已選擇：${file.name}`;
     } else {
         selectedAdifFile = null;
-        $('adifFileNameDisplay').textContent = '';
+        const display = $('adifFileNameDisplay');
+        if (display) display.textContent = '';
     }
 }
 
@@ -563,74 +570,4 @@ function uploadADIF() {
         const content = e.target.result;
         const parsed = parseADIF(content);
         let newRecords = [];
-        let errorCount = 0;
-
-        for (const p of parsed) {
-            if (!p.call) { errorCount++; continue; }
-            newRecords.push({
-                id: Date.now() + Math.random(),
-                date: p.date || '—',
-                call: p.call,
-                band: p.band || '—',
-                mode: p.mode || '—',
-                note: p.note || '',
-                receivedImg: null,
-                sentImg: null,
-                requests: []
-            });
-        }
-
-        if (newRecords.length > 0) {
-            qslRecords = [...qslRecords, ...newRecords];
-            saveData(qslRecords);
-            renderAdminTable();
-            showToast(`✅ 成功匯入 ${newRecords.length} 筆紀錄${errorCount > 0 ? `，${errorCount} 筆格式錯誤已跳過` : ''}`);
-        } else {
-            showToast('⚠️ 未找到有效資料，請確認 ADIF 格式');
-        }
-
-        $('adifFile').value = '';
-        $('adifFileNameDisplay').textContent = '';
-        selectedAdifFile = null;
-    };
-    reader.readAsText(selectedAdifFile);
-}
-
-// ============================================================
-// 事件綁定（初始化）
-// ============================================================
-function init() {
-    // 分頁切換
-    document.querySelectorAll('.nav-tab').forEach(a => {
-        a.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchTab(a.dataset.tab);
-        });
-    });
-
-    // 用戶呼號
-    $('btnSetCallsign').addEventListener('click', setUserCallsign);
-    $('userCallsignInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') setUserCallsign();
-    });
-
-    // 管理員登入
-    $('btnLogin').addEventListener('click', loginAdmin);
-    $('adminPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') loginAdmin();
-    });
-    $('btnLogout').addEventListener('click', logoutAdmin);
-
-    // ADIF
-    $('adifFile').addEventListener('change', handleAdifSelect);
-    $('btnUploadADIF').addEventListener('click', uploadADIF);
-
-    // 手動新增
-    $('btnAddManual').addEventListener('click', addManualRecord);
-
-    // 清除 / 重置
-    $('btnClearAll').addEventListener('click', clearAllRecords);
-    $('btnResetDemo').addEventListener('click', resetToDemo);
-
-    // 燈箱
-    $('lightbox').addEventListener('click', closeLightbox
+        let
