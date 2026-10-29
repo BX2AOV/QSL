@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BX2AOV QSL confirm</title>
-    <!-- 引入主樣式表 -->
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="app-container">
-        <!-- 頂部橫列 -->
         <header class="header-bar">
             <div class="logo-area">
                 <span class="logo-icon">📡</span>
@@ -19,107 +18,39 @@
             <ul class="nav-links">
                 <li><a href="index.html" class="nav-tab active">總覽</a></li>
                 <li><a href="apply.html" class="nav-tab">我的申請</a></li>
-                <li><a href="#" class="nav-tab" data-tab="admin-panel">管理員</a></li>
+                <li><a href="manage.html" class="nav-tab">管理員</a></li>
             </ul>
             <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
                 <span class="role-badge">訪客</span>
             </div>
         </header>
 
-        <!-- ================= 分頁 1：總覽 ================= -->
-        <section class="tab-page active" id="page-dashboard">
-            <!-- 通聯紀錄 -->
-            <div class="card">
-                <h2>📋 通聯紀錄與 QSL 狀態</h2>
-                <div class="card-sub">點擊縮圖可放大檢視 QSL 卡圖片。</div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
-                                <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>備註</th>
-                            </tr>
-                        </thead>
-                        <tbody id="qsoTableBody">
-                            <!-- 由 script.js 動態產生 -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= 分頁 2：管理員 ================= -->
-        <section class="tab-page" id="page-admin-panel">
-            <div class="card">
-                <h2>⚙️ 管理員專區</h2>
-                <div class="card-sub">請先登入管理員帳號。登入後可上傳通聯紀錄、QSL 圖片並處理換卡申請。</div>
-
-                <!-- 登入表單 -->
-                <div class="admin-login-box" id="adminLoginBox">
-                    <input type="password" id="adminPassword" placeholder="請輸入管理員密碼" autocomplete="off">
-                    <button class="btn btn-primary" id="btnLogin">登入</button>
-                    <span id="adminLoginHint" style="font-size:0.85rem; color:#7e96af;"></span>
-                </div>
-
-                <!-- 登入後內容 -->
-                <div id="adminContent" style="display:none;">
-                    <div class="flex-between" style="margin-bottom:16px;">
-                        <h3 style="font-size:1.1rem; color:#1a3a5c;">📄 批量上傳 (ADIF) / ✏️ 手動新增</h3>
-                        <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
-                    </div>
-
-                    <div class="admin-upload-grid">
-                        <!-- ADIF 上傳 -->
-                        <div>
-                            <div class="upload-zone" style="padding:20px;">
-                                <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
-                                <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
-                                <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式</div>
-                                <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
-                            </div>
-                            <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
-                        </div>
-                        <!-- 手動新增 -->
-                        <div class="manual-form">
-                            <input type="text" id="manualDate" placeholder="日期 (YYYY-MM-DD)">
-                            <input type="text" id="manualCall" placeholder="呼號 (例如 BM2XXX)">
-                            <input type="text" id="manualBand" placeholder="頻段 (例如 20m)">
-                            <input type="text" id="manualMode" placeholder="模式 (例如 SSB)">
-                            <input type="text" id="manualNote" placeholder="備註 (選填)">
-                            <button class="btn btn-primary" id="btnAddManual">新增紀錄</button>
-                        </div>
-                    </div>
-
-                    <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有紀錄、QSL 圖片與申請</h3>
-                    <div class="table-wrapper">
-                        <table style="min-width:1000px;">
-                            <thead>
-                                <tr><th>日期</th><th>呼號</th><th>頻段</th><th>模式</th><th>收到 QSL</th><th>發出 QSL</th><th>申請</th><th>操作</th></tr>
-                            </thead>
-                            <tbody id="adminManageBody">
-                                <!-- 由 script.js 動態產生 -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-                        <button class="btn btn-outline btn-sm" id="btnClearAll">清除所有紀錄</button>
-                        <button class="btn btn-outline btn-sm" id="btnResetDemo">重置為示範資料</button>
-                    </div>
-                </div>
+        <section class="card">
+            <h2>📋 通聯紀錄與 QSL 狀態</h2>
+            <div class="card-sub">點擊縮圖可放大檢視 QSL 卡圖片。</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
+                            <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qsoTableBody">
+                        <tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     </div>
 
-    <!-- 燈箱 (點擊圖片放大) -->
     <div class="lightbox" id="lightbox">
         <span class="lightbox-close" id="lightboxClose">×</span>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
-    <!-- 提示訊息 Toast -->
     <div id="toast" class="toast">操作成功</div>
 
-    <!-- 引入主邏輯 script.js -->
     <script src="script.js"></script>
 </body>
 </html>
