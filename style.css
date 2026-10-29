@@ -12,7 +12,7 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
 .nav-links a { text-decoration: none; color: #2c3e50; font-weight: 500; padding: 10px 18px; border-radius: 40px; transition: 0.2s; font-size: 0.95rem; }
 .nav-links a:hover, .nav-links a.active { background: #e6f0ff; color: #0066cc; }
 
-/* ===== 👇 語言滑動開關專屬樣式 👇 ===== */
+/* ===== 👇 四國語言滑動開關 👇 ===== */
 .lang-switch {
     position: relative;
     display: flex;
@@ -21,7 +21,7 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     border-radius: 40px;
     padding: 4px;
     cursor: pointer;
-    width: 110px;
+    width: 190px; /* 加寬以容納四個選項 */
     height: 38px;
     user-select: none;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
@@ -31,7 +31,7 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     position: absolute;
     top: 4px;
     left: 4px;
-    width: calc(50% - 4px);
+    width: calc(25% - 4px); /* 寬度改為 25% */
     height: calc(100% - 8px);
     background: #fff;
     border-radius: 30px;
@@ -40,9 +40,10 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     z-index: 1;
 }
 
-.lang-switch[data-active="en"] .lang-slider {
-    transform: translateX(100%);
-}
+/* 滑塊移動位置 */
+.lang-switch[data-active="cn"] .lang-slider { transform: translateX(100%); }
+.lang-switch[data-active="en"] .lang-slider { transform: translateX(200%); }
+.lang-switch[data-active="ja"] .lang-slider { transform: translateX(300%); }
 
 .lang-option {
     flex: 1;
@@ -54,11 +55,14 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     transition: color 0.3s;
 }
 
+/* 啟動時的顏色 */
 .lang-switch[data-active="zh"] .lang-option[data-lang="zh"],
-.lang-switch[data-active="en"] .lang-option[data-lang="en"] {
+.lang-switch[data-active="cn"] .lang-option[data-lang="cn"],
+.lang-switch[data-active="en"] .lang-option[data-lang="en"],
+.lang-switch[data-active="ja"] .lang-option[data-lang="ja"] {
     color: #0b2a4a;
 }
-/* ===== 👆 語言滑動開關專屬樣式結束 👆 ===== */
+/* ===== 👆 四國語言滑動開關結束 👆 ===== */
 
 /* ===== 卡片 ===== */
 .card { background: #fff; border-radius: 32px; padding: 28px 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); border: 1px solid #e0e9f2; margin-bottom: 28px; }
@@ -136,52 +140,16 @@ tr:hover td { background: #fafdff; }
 
 /* ===== 響應式 (手機版優化) ===== */
 @media (max-width: 700px) {
-    /* 頂部橫列變成上下排列 */
-    .header-bar { 
-        flex-direction: column; 
-        border-radius: 24px; 
-        padding: 16px; 
-        gap: 16px;
-    }
-    
-    /* 導覽列與切換開關並排 */
-    .nav-links { 
-        justify-content: center; 
-        width: 100%; 
-    }
-    .nav-links a { 
-        padding: 8px 14px; 
-        font-size: 0.85rem; 
-    }
-
-    /* 讓右上角的區塊變成橫向排列且置中 */
-    .header-bar > div:last-child {
-        width: 100%;
-        justify-content: center;
-        margin-top: 4px;
-    }
-
+    .header-bar { flex-direction: column; border-radius: 24px; padding: 16px; gap: 16px; }
+    .nav-links { justify-content: center; width: 100%; }
+    .nav-links a { padding: 8px 14px; font-size: 0.85rem; }
+    .header-bar > div:last-child { width: 100%; justify-content: center; margin-top: 4px; }
     .card { padding: 20px 18px; border-radius: 24px; }
-    
-    /* 表格字體稍微縮小，讓手機更好閱讀 */
     table { font-size: 0.8rem; min-width: 800px; }
     th, td { padding: 10px 12px; }
 
-    /* 👇 修正手機版管理員登入框爆高的問題 👇 */
-    .admin-login-box {
-        flex-direction: column !important;
-        padding: 16px !important;
-        gap: 12px !important;
-    }
-    .admin-login-box input {
-        flex: none !important;
-        width: 100% !important;
-        height: 50px !important; /* 限制高度，不要讓它被拉長 */
-        padding: 10px 16px !important;
-        border-radius: 12px !important; /* 縮小圓角，比較好看 */
-    }
-    .admin-login-box .btn {
-        width: 100% !important;
-        padding: 12px !important;
-    }
+    /* 修正手機版管理員登入框爆高 */
+    .admin-login-box { flex-direction: column !important; padding: 16px !important; gap: 12px !important; }
+    .admin-login-box input { flex: none !important; width: 100% !important; height: 50px !important; padding: 10px 16px !important; border-radius: 12px !important; }
+    .admin-login-box .btn { width: 100% !important; padding: 12px !important; }
 }
