@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯 (精準切換語言版)
+   script.js - 首頁（總覽）專用邏輯 (包含搜尋功能)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,10 +7,11 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
+let filteredRecords = []; // 用來存放過濾後的資料
 let currentLang = localStorage.getItem('site_lang') || 'zh'; 
 
 // ============================================================
-// 🌟 核心：精準點擊哪個語言就切換
+// 語言切換核心邏輯
 // ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
@@ -19,32 +20,31 @@ window.changeLang = function(lang) {
 };
 
 function applyLanguage() {
-    // 1. 切換文字
     document.querySelectorAll('[data-zh]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}`)) {
             el.textContent = el.getAttribute(`data-${currentLang}`);
         }
     });
 
-    // 2. 切換 Placeholder
     document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}-placeholder`)) {
             el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
         }
     });
 
-    // 3. 驅動滑塊位置
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
 
-    // 4. 更新 HTML lang
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 5. 如果資料已載入，重新渲染表格
+    // 如果有資料，重新渲染表格
     if (qslRecords.length > 0) renderMainTable();
 }
 
+// ============================================================
+// 狀態判斷
+// ============================================================
 function computeQslStatus(r) {
     const t = {
         zh: { none: '未申請', pending: '待處理', paper: '已收到紙卡', eqsl: '已收到電子卡', sent: '已發出紙卡', completed: '已交換完成', not_needed: '無需換卡', both: '雙向完成', rcvd: '已收到', snt: '已發出' },
@@ -87,6 +87,9 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
+// ============================================================
+// 取得資料與渲染
+// ============================================================
 async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
@@ -103,6 +106,7 @@ async function fetchData() {
     }
 
     qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
+    filteredRecords = [...qslRecords]; // 預設顯示全部
     renderMainTable();
 }
 
@@ -110,13 +114,13 @@ function renderMainTable() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
-    if (qslRecords.length === 0) {
-        const emptyText = { zh: '📭 目前沒有通聯紀錄', cn: '📭 目前没有通联记录', en: '📭 No QSO records found', ja: '📭 交信記録がありません' };
+    if (filteredRecords.length === 0) {
+        const emptyText = { zh: '📭 找不到符合的通聯紀錄', cn: '📭 找不到符合的通联记录', en: '📭 No matching QSO records found', ja: '📭 一致する交信記録がありません' };
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
         return;
     }
     
-    tbody.innerHTML = qslRecords.map(r => {
+    tbody.innerHTML = filteredRecords.map(r => {
         const st = computeQslStatus(r);
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '<div class="qsl-thumb-empty">—</div>';
@@ -158,6 +162,9 @@ function renderMainTable() {
     }).join('');
 }
 
+// ============================================================
+// 初始化與搜尋事件綁定
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('qsoTableBody')) return;
 
@@ -166,6 +173,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+
+    // 👇 綁定搜尋框的即時輸入事件 👇
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const keyword = this.value.trim().toUpperCase();
+            
+            if (!keyword) {
+                // 如果清空搜尋框，顯示全部
+                filteredRecords = [...qslRecords];
+            } else {
+                // 否則過濾包含關鍵字的呼號
+                filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
+            }
+            renderMainTable();
+        });
+    }
 
     fetchData();
 });
