@@ -270,7 +270,6 @@ async function renderAdminTable() {
     }).join('');
 }
 
-// ... 以下為各項操作函數 (changeStatus, deleteRecord, handleQslImageUpload 等，保持不變) ...
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
@@ -580,14 +579,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
-    // 👇 新增 LoTW 同步按鈕的點擊事件 👇
+    // 👇 呼叫 sync-lotw 按鈕事件 👇
     document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
         const btn = this;
         btn.disabled = true;
         btn.textContent = '⏳ 正在從 LoTW 抓取資料...';
 
-        // 呼叫你剛剛部署的 Edge Function (名稱是 rapid-response)
-        const { data, error } = await _supabase.functions.invoke('rapid-response');
+        // 呼叫你剛剛部署的 Edge Function (名稱是 sync-lotw)
+        const { data, error } = await _supabase.functions.invoke('sync-lotw');
 
         btn.disabled = false;
         btn.textContent = '🔄 從 LoTW 自動同步已確認卡片';
