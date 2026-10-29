@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (加入時間排序)
+   manage.js - 管理員後台完整邏輯 (終極防重複過濾版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -15,13 +15,12 @@ const manageTableBody = document.getElementById('manageTableBody');
 
 let selectedFilesArray = [];
 
-// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
     t.textContent = msg; t.classList.add('show'); 
     clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 3500); 
+    window.tt = setTimeout(() => t.classList.remove('show'), 4500); 
 }
 function escapeHtml(text) { 
     if (!text) return ''; 
@@ -39,7 +38,6 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// 衛星與顯示判斷
 function getDisplayInfo(r) {
     let displayBand = r.band;
     let displayMode = r.mode;
@@ -51,6 +49,13 @@ function getDisplayInfo(r) {
         }
     }
     return { band: displayBand, mode: displayMode };
+}
+
+// 將時間轉換為分鐘
+function timeToMinutes(timeStr) {
+    if (!timeStr || !timeStr.includes(':')) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
 }
 
 // ============================================================
@@ -143,12 +148,7 @@ async function renderAdminTable() {
     if (!manageTableBody) return;
     manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
 
-    // 🌟 修改排序方式：先依日期(新到舊)，再依時間(新到舊)
-    const { data, error } = await _supabase
-        .from('qsl_records')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('time', { ascending: false });
+    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
 
     if (error) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
     if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="8"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
@@ -205,7 +205,6 @@ async function renderAdminTable() {
                 ${sentBtnHtml}
             </div>`;
 
-        // 狀態下拉選單
         const currentStatus = r.status || 'none';
         const statusSelect = `
             <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid #cbdae8; font-size:0.85rem; background:#fff; cursor:pointer; outline:none;">
@@ -235,20 +234,12 @@ async function renderAdminTable() {
     }).join('');
 }
 
-// 修改狀態
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
-    
-    if (error) { 
-        showToast('❌ 更新失敗'); 
-        console.error(error);
-    } else { 
-        showToast('✅ 狀態已更新'); 
-    }
+    if (error) { showToast('❌ 更新失敗'); } else { showToast('✅ 狀態已更新'); }
 }
 
-// ---------- 刪除整筆 ----------
 async function deleteRecord(recordId) {
     if (!confirm('⚠️ 警告：您確定要刪除這筆通聯紀錄嗎？\n這將會連同該筆的所有申請資料一起刪除！')) return;
     showToast('⏳ 正在刪除...');
@@ -257,7 +248,6 @@ async function deleteRecord(recordId) {
     else { showToast('🗑️ 已成功刪除該筆通聯紀錄'); renderAdminTable(); calculateStorageUsage(); }
 }
 
-// ---------- 刪除單筆圖片 ----------
 async function deleteQslImage(recordId, type) {
     if (!confirm(`確定要刪除這張「${type === 'received' ? '收到' : '發出'}」的 QSL 圖片嗎？`)) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('receivedImg, sentImg').eq('id', recordId).single();
@@ -275,7 +265,6 @@ async function deleteQslImage(recordId, type) {
     else { showToast('🗑️ 圖片已刪除'); renderAdminTable(); calculateStorageUsage(); }
 }
 
-// ---------- 處理使用者的申請 ----------
 async function deleteRequest(recordId, reqIndex) {
     if (!confirm('確定要刪除這筆使用者的換卡申請嗎？')) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
@@ -304,9 +293,6 @@ async function rejectRequest(recordId, reqIndex) {
     showToast('已拒絕申請'); renderAdminTable();
 }
 
-// ============================================================
-// 圖片上傳
-// ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -331,7 +317,7 @@ async function handleQslImageUpload(recordId, type, event) {
 }
 
 // ============================================================
-// ADIF 上傳
+// ADIF 上傳 (包含頻率與時間雙重誤差過濾)
 // ============================================================
 function handleAdifSelect(event) {
     const files = event.target.files;
@@ -373,6 +359,7 @@ function parseADIF(content) {
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
+        else if (fieldName === 'FREQ') { current.freq = parseFloat(value); } // 抓取精準頻率
         else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); }
         else if (fieldName === 'COMMENT' || fieldName === 'NOTES') { current.note = (current.note || '') + value; }
     }
@@ -387,8 +374,13 @@ async function uploadADIF() {
     btnUploadADIF.disabled = true; 
     btnUploadADIF.textContent = `⏳ 讀取中...`;
 
+    // 抓取資料庫現有資料來比對 (加入 freq 欄位)
+    const { data: existingRecords, error: fetchError } = await _supabase.from('qsl_records').select('date, time, call, band, mode, note');
+    if (fetchError) { showToast('❌ 無法讀取資料庫進行比對'); btnUploadADIF.disabled = false; btnUploadADIF.textContent = '全部上傳並匯入'; return; }
+
     let allNewRecords = [];
     let processed = 0;
+    let duplicateCount = 0;
 
     const readPromises = selectedFilesArray.map(file => {
         return new Promise((resolve) => {
@@ -397,8 +389,35 @@ async function uploadADIF() {
                 const parsed = parseADIF(e.target.result);
                 for (const p of parsed) {
                     if (!p.call) continue;
+                    
+                    const isDuplicate = existingRecords.some(ex => {
+                        // 1. 必須同一天、同呼號、同模式
+                        if (ex.call !== p.call || ex.mode !== p.mode || ex.date !== p.date) return false;
+
+                        // 2. 判斷頻段或精準頻率
+                        if (p.freq && ex.note) {
+                            // 如果新資料有 freq，且舊資料備註裡有紀錄 freq，就比對誤差 (小於 0.005 MHz)
+                            const match = ex.note.match(/FREQ:([\d.]+)/);
+                            if (match) {
+                                const exFreq = parseFloat(match[1]);
+                                if (Math.abs(exFreq - p.freq) > 0.005) return false; // 頻率差太多，不算重複
+                            }
+                        } else if (ex.band !== p.band) {
+                            return false; // 如果沒精準頻率，退回到比對 BAND (例如 2M)
+                        }
+
+                        // 3. 判斷時間誤差 (小於 3 分鐘)
+                        const exTime = timeToMinutes(ex.time);
+                        const newTime = timeToMinutes(p.time);
+                        return Math.abs(exTime - newTime) <= 3;
+                    });
+
+                    if (isDuplicate) { duplicateCount++; continue; }
+
                     let noteStr = p.note || '';
                     if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
+                    // 把精準頻率寫入備註，方便未來比對
+                    if (p.freq) noteStr = `FREQ:${p.freq} ${noteStr}`.trim();
 
                     allNewRecords.push({ 
                         date: p.date || '—', 
@@ -411,7 +430,7 @@ async function uploadADIF() {
                     });
                 }
                 processed++;
-                btnUploadADIF.textContent = `⏳ 讀取中 (${processed}/${selectedFilesArray.length})...`;
+                btnUploadADIF.textContent = `⏳ 比對中 (${processed}/${selectedFilesArray.length})...`;
                 resolve();
             };
             reader.readAsText(file);
@@ -426,10 +445,14 @@ async function uploadADIF() {
         
         if (error) { showToast('❌ 匯入失敗'); } 
         else { 
-            showToast(`✅ 成功從 ${selectedFilesArray.length} 個檔案匯入 ${allNewRecords.length} 筆紀錄`);
+            let msg = `✅ 新增 ${allNewRecords.length} 筆`;
+            if (duplicateCount > 0) msg += `，跳過 ${duplicateCount} 筆重複`;
+            showToast(msg);
             renderAdminTable(); calculateStorageUsage();
         }
-    } else { showToast('⚠️ 無有效資料'); }
+    } else { 
+        showToast(`⚠️ 無有效資料 (跳過 ${duplicateCount} 筆重複)`); 
+    }
 
     btnUploadADIF.disabled = false; 
     btnUploadADIF.textContent = '全部上傳並匯入';
