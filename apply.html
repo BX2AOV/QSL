@@ -103,15 +103,22 @@
                     </div>
                 </div>
 
+                <!-- 👇 地址欄位加上小提示 👇 -->
                 <div class="form-row">
                     <label data-zh="地址" data-cn="地址" data-en="Address" data-ja="住所">地址 <span class="required">*</span></label>
-                    <!-- 👇 這裡加入了各語言的英文地址提示 👇 -->
+                    <div class="address-hint" 
+                         data-zh="💡 國際郵件請提供「英文地址」" 
+                         data-cn="💡 国际邮件请提供「英文地址」" 
+                         data-en="💡 Please provide an address in English" 
+                         data-ja="💡 国際郵便のため「英語の住所」を入力してください">
+                         💡 國際郵件請提供「英文地址」
+                    </div>
                     <input type="text" id="shipAddress" 
-                           placeholder="例如 台北市中正區重慶南路一段122號" 
-                           data-zh-placeholder="例如 台北市中正區重慶南路一段122號（請提供國際通用之英文地址）" 
-                           data-cn-placeholder="例如 台北市中正区重庆南路一段122号（请提供国际通用之英文地址）" 
-                           data-en-placeholder="Please provide an address in English (e.g. No. 122, Sec. 1, Chongqing S. Rd.)" 
-                           data-ja-placeholder="英語の住所を入力してください（例：No. 122, Sec. 1, Chongqing S. Rd.）">
+                           placeholder="例如 No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
+                           data-zh-placeholder="例如 No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
+                           data-cn-placeholder="例如 No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
+                           data-en-placeholder="e.g. No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
+                           data-ja-placeholder="例：No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100">
                 </div>
                 
                 <div class="form-row">
