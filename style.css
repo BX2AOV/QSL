@@ -110,3 +110,9 @@ tr:hover td { background: #fafdff; }
     .nav-links a { padding: 8px 14px; font-size: 0.85rem; }
     .card { padding: 20px 18px; border-radius: 24px; }
 }
+
+/* ===== 分頁切換 ===== */
+.tab-page { display: none; }
+.tab-page.active { display: block; }
+
+.nav-links a { cursor: pointer; }
