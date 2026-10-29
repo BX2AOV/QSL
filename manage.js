@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含自動改狀態與篩選)
+   manage.js - 管理員後台完整邏輯 (自動判斷完成與30天計時)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -96,8 +96,6 @@ async function login() {
 
     sessionStorage.setItem('isAdmin', 'true');
     showToast('✅ 管理員登入成功');
-    
-    // 🌟 這裡補上了切換畫面的呼叫！
     checkUser();
 }
 
@@ -253,6 +251,17 @@ async function renderAdminTable() {
             sentReminderHtml = `<div style="font-size:0.7rem; color:#a0b2c6; margin-top:4px;">無寄出時間紀錄</div>`;
         }
 
+        // 🌟 如果狀態是完成，顯示完成日期與即將刪除的提示
+        if (r.status === 'completed' && r.completedDate) {
+            const daysSinceComplete = getDaysSince(r.completedDate);
+            const daysLeft = 30 - daysSinceComplete;
+            if (daysLeft > 0) {
+                sentReminderHtml += `<div style="font-size:0.7rem; color:#0e6b3e; margin-top:4px;">✅ 已完成，${daysLeft} 天後自動清理圖片</div>`;
+            } else {
+                sentReminderHtml += `<div style="font-size:0.7rem; color:#b03030; margin-top:4px;">🧹 圖片將於下次訪客拜訪時清除</div>`;
+            }
+        }
+
         const recvHtml = `
             <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
                 <label for="recv-${r.id}">📥 收到</label>
@@ -341,6 +350,18 @@ async function deleteQslImage(recordId, type) {
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
     if (type === 'sent') updateData.sentDate = null;
+    
+    // 🌟 如果刪除了圖片，狀態也要跟著退回，取消 completedDate
+    const currentRecord = allRecords.find(r => r.id === recordId);
+    if (currentRecord) {
+        if (type === 'received' && currentRecord.status === 'completed') {
+            updateData.status = currentRecord.sentImg ? 'sent' : 'pending';
+            updateData.completedDate = null;
+        } else if (type === 'sent' && currentRecord.status === 'completed') {
+            updateData.status = currentRecord.receivedImg ? 'received_paper' : 'pending';
+            updateData.completedDate = null;
+        }
+    }
 
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     if (dbError) { showToast('❌ 刪除失敗'); } 
@@ -377,7 +398,7 @@ async function rejectRequest(recordId, reqIndex) {
 }
 
 // ============================================================
-// 🌟 圖片上傳與自動改狀態
+// 🌟 圖片上傳與自動判斷完成
 // ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
@@ -425,25 +446,48 @@ async function handleQslImageUpload(recordId, type, event) {
             const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
             const updateData = {};
             
-            // 🌟 上傳圖片的同時，自動更改狀態
+            // 取得目前這筆紀錄的狀態
+            const currentRecord = allRecords.find(r => r.id === recordId);
+            let willBeCompleted = false;
+
             if (type === 'received') {
                 updateData.receivedImg = publicUrl;
-                // 如果目前狀態是「未申請」或「待處理」，才自動改成「已收到紙卡」
-                const currentRecord = allRecords.find(r => r.id === recordId);
-                if (currentRecord && (currentRecord.status === 'none' || currentRecord.status === 'pending' || !currentRecord.status)) {
-                    updateData.status = 'received_paper';
+                // 如果發出圖片已經存在，就代表雙向完成
+                if (currentRecord && currentRecord.sentImg) {
+                    willBeCompleted = true;
                 }
             } else if (type === 'sent') {
                 updateData.sentImg = publicUrl;
                 updateData.sentDate = new Date().toISOString();
-                // 上傳發出圖片，自動改成「已發出紙卡」
-                updateData.status = 'sent';
+                // 如果收到圖片已經存在，就代表雙向完成
+                if (currentRecord && currentRecord.receivedImg) {
+                    willBeCompleted = true;
+                }
+            }
+
+            // 🌟 如果雙方都有圖片，自動改成「已交換完成」並記錄完成時間
+            if (willBeCompleted) {
+                updateData.status = 'completed';
+                updateData.completedDate = new Date().toISOString();
+            } else {
+                // 如果只有單邊圖片，根據上傳的類型給予對應狀態
+                if (type === 'sent') {
+                    updateData.status = 'sent';
+                } else if (type === 'received') {
+                    if (currentRecord && (currentRecord.status === 'none' || currentRecord.status === 'pending' || !currentRecord.status)) {
+                        updateData.status = 'received_paper';
+                    }
+                }
             }
 
             const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
             if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
             else { 
-                showToast(type === 'sent' ? '✅ 圖片已上傳，狀態已改為「已發出」' : '✅ 圖片上傳成功'); 
+                if (willBeCompleted) {
+                    showToast('🎉 雙方圖片已齊全，狀態已改為「已交換完成」！');
+                } else {
+                    showToast(type === 'sent' ? '✅ 圖片已上傳，狀態已改為「已發出」' : '✅ 圖片上傳成功'); 
+                }
                 allRecords = []; 
                 renderAdminTable(); 
                 calculateStorageUsage(); 
