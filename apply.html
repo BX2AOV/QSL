@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的申請 - BX2AOV QSL confirm</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="apply.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -25,12 +24,11 @@
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="lang-switch" id="langToggle" title="Switch Language">
                     <div class="lang-slider" id="langSlider"></div>
-                    <span class="lang-option" data-lang="zh" onclick="changeLang('zh')">繁</span>
-                    <span class="lang-option" data-lang="cn" onclick="changeLang('cn')">简</span>
-                    <span class="lang-option" data-lang="en" onclick="changeLang('en')">EN</span>
-                    <span class="lang-option" data-lang="ja" onclick="changeLang('ja')">日</span>
+                    <span class="lang-option" data-lang="zh">繁</span>
+                    <span class="lang-option" data-lang="cn">简</span>
+                    <span class="lang-option" data-lang="en">EN</span>
+                    <span class="lang-option" data-lang="ja">日</span>
                 </div>
-
                 <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
                     <span class="role-badge" data-zh="訪客" data-cn="访客" data-en="Guest" data-ja="ゲスト">訪客</span>
                 </div>
@@ -38,28 +36,33 @@
         </header>
 
         <section class="card">
-            <h2 data-zh="🔍 查詢我的通聯紀錄" data-cn="🔍 查询我的通联记录" data-en="🔍 Search My QSO Logs" data-ja="🔍 交信記録を検索">🔍 查詢我的通聯紀錄</h2>
-            <div class="card-sub" data-zh="輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。" data-cn="输入您的呼号，系统会自动找出数据库中属于您的通联记录。" data-en="Enter your callsign to find your QSO logs." data-ja="コールサインを入力すると、データベースからあなたの交信記録を検索します。">輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。</div>
-            <div class="user-callsign-area">
-                <input type="text" id="queryCallsignInput" placeholder="輸入您的呼號" style="text-transform:uppercase;" data-zh-placeholder="輸入您的呼號" data-cn-placeholder="输入您的呼号" data-en-placeholder="Enter Callsign" data-ja-placeholder="コールサインを入力">
-                <button class="btn btn-primary" id="btnQuery" data-zh="查詢通聯紀錄" data-cn="查询通联记录" data-en="Search Logs" data-ja="検索する">查詢通聯紀錄</button>
-                <span id="queryResultHint" style="font-size:0.9rem; color:#5a6e85;"></span>
+            <h2 data-zh="🔍 查詢我的通聯紀錄" data-cn="🔍 查询我的通联记录" data-en="🔍 Search My QSO Logs" data-ja="🔍 交信記録の検索">🔍 查詢我的通聯紀錄</h2>
+            <div class="card-sub" data-zh="輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。" data-cn="输入您的呼号，系统会自动找出数据库中属于您的通联记录。" data-en="Enter your callsign to find your QSO records." data-ja="コールサインを入力すると、ご自身の交信記録が検索されます。">輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。</div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <input type="text" id="queryCallsignInput" placeholder="請輸入呼號 (例: BV2AAA)" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #cbdae8; text-transform: uppercase;">
+                <button id="btnQuery" class="btn-primary" style="padding: 0 24px;" data-zh="查詢通聯紀錄" data-cn="查询通联记录" data-en="Search" data-ja="検索">查詢通聯紀錄</button>
             </div>
+            <div id="queryResultHint" style="margin-top: 10px; font-weight: bold;"></div>
         </section>
 
-        <section class="card" id="queryResultCard" style="display:none;">
-            <h2 data-zh="📋 您的通聯紀錄" data-cn="📋 您的通联记录" data-en="📋 Your QSO Logs" data-ja="📋 あなたの交信記録">📋 您的通聯紀錄</h2>
-            <div class="card-sub" data-zh="以下是資料庫中屬於您呼號的通聯紀錄。勾選您要申請 QSL 換卡的通聯（可多選）。" data-cn="以下是数据库中属于您呼号的通联记录。勾选您要申请 QSL 换卡的通联（可多选）。" data-en="Select the QSOs you want to request a QSL card for (multiple allowed)." data-ja="QSLカードを請求する交信を選択してください（複数選択可）。">以下是資料庫中屬於您呼號的通聯紀錄。勾選您要申請 QSL 換卡的通聯（可多選）。</div>
-            <div class="table-wrapper">
+        <!-- 查詢結果表格 -->
+        <section class="card" id="queryResultCard" style="display: none;">
+            <div class="flex-between">
+                <h3 data-zh="📋 您的通聯紀錄" data-cn="📋 您的通联记录" data-en="📋 Your QSO Logs" data-ja="📋 あなたの交信記録">📋 您的通聯紀錄</h3>
+                <div class="card-sub" style="margin-bottom:0;" data-zh="勾選您要申請 QSL 換卡的通聯。" data-cn="勾选您要申请 QSL 换卡的通联。" data-en="Select the QSOs you want to request QSL for." data-ja="QSLカードを請求する交信を選択してください。">勾選您要申請 QSL 換卡的通聯。</div>
+            </div>
+            
+            <div class="table-wrapper" style="margin-top: 15px;">
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:40px;"><input type="checkbox" id="selectAll" title="全選"></th>
+                            <th style="width: 50px; text-align: center;"><input type="checkbox" id="selectAll"></th>
                             <th data-zh="日期" data-cn="日期" data-en="Date" data-ja="日付">日期</th>
                             <th data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
                             <th data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
                             <th data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
-                            <th data-zh="QSL 狀態" data-cn="QSL 状态" data-en="QSL Status" data-ja="QSL ステータス">QSL 狀態</th>
+                            <th data-zh="QSL 狀態" data-cn="QSL 状态" data-en="QSL Status" data-ja="QSLステータス">QSL 狀態</th>
                             <th data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
                         </tr>
                     </thead>
@@ -68,105 +71,75 @@
             </div>
         </section>
 
-        <section class="card" id="shipInfoCard" style="display:none;">
-            <h2 data-zh="📮 收件資訊" data-cn="📮 收件信息" data-en="📮 Shipping Info" data-ja="📮 発送先情報">📮 收件資訊</h2>
-            <div class="card-sub" data-zh="請填寫您的收件資訊，以便寄送 QSL 卡。" data-cn="请填写您的收件信息，以便寄送 QSL 卡。" data-en="Please fill in your shipping information." data-ja="QSLカード発送のため、発送先情報を入力してください。">請填寫您的收件資訊，以便寄送 QSL 卡。</div>
+        <!-- 填寫收件資訊與密碼 -->
+        <section class="card" id="shipInfoCard" style="display: none;">
+            <h3 data-zh="✉️ 填寫收件資訊" data-cn="✉️ 填写收件信息" data-en="✉️ Shipping Info" data-ja="✉️ 送付先情報">✉️ 填寫收件資訊</h3>
+            <div id="selectedCountHint" style="margin: 10px 0; color: #7b3fa0; font-weight: bold;"></div>
             
-            <div class="ship-form">
-                <div class="form-row">
-                    <label data-zh="收件人" data-cn="收件人" data-en="Recipient" data-ja="受取人">收件人 <span class="required">*</span></label>
-                    <input type="text" id="shipName" placeholder="請輸入收件人姓名" data-zh-placeholder="請輸入收件人姓名" data-cn-placeholder="请输入收件人姓名" data-en-placeholder="Full Name" data-ja-placeholder="氏名を入力">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <div>
+                    <label data-zh="收件人姓名 *" data-cn="收件人姓名 *" data-en="Name *" data-ja="氏名 *">收件人姓名 *</label>
+                    <input type="text" id="shipName" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbdae8;">
                 </div>
-                
-                <div class="row-group">
-                    <div class="form-row" style="flex: 2;">
-                        <label data-zh="手機號碼" data-cn="手机号码" data-en="Phone" data-ja="電話番号">手機號碼 <span class="required" id="phoneReq">*</span></label>
-                        <div style="display: flex; gap: 6px; align-items: center;">
-                            
-                            <!-- 👇 自訂國碼下拉選單 👇 -->
-                            <div class="custom-select-wrapper" id="countryCodeWrapper" style="flex-shrink: 0;">
-                                <div class="custom-select-trigger" id="countryCodeTrigger">
-                                    <span id="selectedCountryCode">+886</span>
-                                    <span class="arrow">▼</span>
-                                </div>
-                                <div class="custom-options" id="countryCodeOptions">
-                                    <div class="custom-option" data-value="+886" onclick="selectCountry('+886')">+886 (TW)</div>
-                                    <div class="custom-option" data-value="+81" onclick="selectCountry('+81')">+81 (JP)</div>
-                                    <div class="custom-option" data-value="+86" onclick="selectCountry('+86')">+86 (CN)</div>
-                                    <div class="custom-option" data-value="+1" onclick="selectCountry('+1')">+1 (US)</div>
-                                    <div class="custom-option" data-value="+44" onclick="selectCountry('+44')">+44 (UK)</div>
-                                    <div class="custom-option" data-value="+61" onclick="selectCountry('+61')">+61 (AU)</div>
-                                    <div class="custom-option" data-value="+82" onclick="selectCountry('+82')">+82 (KR)</div>
-                                    <div class="custom-option" data-value="+852" onclick="selectCountry('+852')">+852 (HK)</div>
-                                    <div class="custom-option" data-value="+65" onclick="selectCountry('+65')">+65 (SG)</div>
-                                </div>
+                <div>
+                    <label data-zh="手機號碼" data-cn="手机号码" data-en="Phone" data-ja="電話番号">手機號碼</label>
+                    <div style="display: flex; gap: 5px;">
+                        <div class="custom-select" id="countryCodeWrapper" style="position: relative; width: 80px;">
+                            <div id="countryCodeTrigger" style="padding: 10px; border: 1px solid #cbdae8; border-radius: 8px; cursor: pointer; background: #fff;">
+                                <span id="selectedCountryCode">+886</span> ▼
                             </div>
-                            <!-- 👆 自訂國碼下拉選單結束 👆 -->
-
-                            <input type="tel" id="shipPhone" placeholder="例如 0912345678" style="flex: 1; min-width: 0;" data-zh-placeholder="例如 0912345678" data-cn-placeholder="例如 0912345678" data-en-placeholder="e.g. 0912345678" data-ja-placeholder="例：0912345678">
-                            <button type="button" id="btnNoPhone" class="btn btn-outline" style="padding: 0 16px; border-radius: 12px; font-size: 0.85rem; white-space: nowrap; flex-shrink: 0; border: 1.5px solid #cbdae8; transition: all 0.3s;">無需提供</button>
+                            <!-- 簡化版的國碼選單，請確保 CSS 支援 .custom-select 的 open 狀態 -->
                         </div>
-                    </div>
-                    <div class="form-row" style="flex: 1;">
-                        <label data-zh="郵遞區號" data-cn="邮编" data-en="Zip Code" data-ja="郵便番号">郵遞區號 <span class="required">*</span></label>
-                        <input type="text" id="shipZip" placeholder="例如 100" maxlength="6" data-zh-placeholder="例如 100" data-cn-placeholder="例如 100" data-en-placeholder="e.g. 100" data-ja-placeholder="例：100">
+                        <input type="tel" id="shipPhone" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbdae8;">
+                        <button type="button" id="btnNoPhone" style="padding: 0 10px; border-radius: 8px; border: 1px solid #cbdae8; background: #fff; cursor: pointer; white-space: nowrap;">無需提供</button>
                     </div>
                 </div>
-
-                <div class="form-row">
-                    <label data-zh="地址" data-cn="地址" data-en="Address" data-ja="住所">地址 <span class="required">*</span></label>
-                    <div class="address-hint" 
-                         data-zh="💡 請提供完整地址" 
-                         data-cn="💡 请提供完整地址" 
-                         data-en="💡 Please provide an address in English" 
-                         data-ja="💡 国際郵便のため「英語の住所」を入力してください">
-                         💡 請提供完整地址
-                    </div>
-                    <input type="text" id="shipAddress" 
-                           placeholder="例如 No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
-                           data-zh-placeholder="例如 台北市中正區重慶南路一段122號" 
-                           data-cn-placeholder="例如 台北市中正区重庆南路一段122号" 
-                           data-en-placeholder="e.g. No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100" 
-                           data-ja-placeholder="例：No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City 100">
+                <div>
+                    <label data-zh="郵遞區號 *" data-cn="邮政编码 *" data-en="Zip Code *" data-ja="郵便番号 *">郵遞區號 *</label>
+                    <input type="text" id="shipZip" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbdae8;">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label data-zh="收件地址 *" data-cn="收件地址 *" data-en="Address *" data-ja="住所 *">收件地址 *</label>
+                    <input type="text" id="shipAddress" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbdae8;">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label data-zh="備註 (選填)" data-cn="备注 (选填)" data-en="Note (Optional)" data-ja="備考 (任意)">備註 (選填)</label>
+                    <input type="text" id="shipNote" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbdae8;">
                 </div>
                 
-                <div class="form-row">
-                    <label data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</label>
-                    <input type="text" id="shipNote" placeholder="選填，例如指定寄送方式" data-zh-placeholder="選填，例如指定寄送方式" data-cn-placeholder="选填，例如指定寄送方式" data-en-placeholder="Optional, e.g. shipping method" data-ja-placeholder="任意（発送方法など）">
+                <!-- 🌟 新增：設定密碼區塊 -->
+                <div style="grid-column: span 2; background: #fdf8f8; padding: 15px; border-radius: 8px; border: 1px dashed #f5c6c6; margin-top: 10px;">
+                    <label style="font-weight: bold; color: #b03030; display: block; margin-bottom: 5px;" data-zh="🔒 設定查詢密碼 (至少4碼) *" data-cn="🔒 设置查询密码 (至少4位) *" data-en="🔒 Set Query Password (Min 4 chars) *" data-ja="🔒 照会パスワードの設定 (4文字以上) *">🔒 設定查詢密碼 (至少4碼) *</label>
+                    <div class="card-sub" style="font-size: 0.8rem; margin-bottom: 8px;" data-zh="為了保護您的隱私，請設定一組密碼。未來查詢時需輸入此密碼才能查看完整的收件地址。" data-cn="为了保护您的隐私，请设置一组密码。未来查询时需输入此密码才能查看完整的收件地址。" data-en="To protect your privacy, set a password. You will need this to view your full address in the future." data-ja="プライバシー保護のため、パスワードを設定してください。今後、完全な住所を表示するために必要です。">為了保護您的隱私，請設定一組密碼。未來查詢時需輸入此密碼才能查看完整的收件地址。</div>
+                    <input type="password" id="shipPassword" placeholder="請設定4位數以上密碼" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #f5c6c6; outline: none;">
                 </div>
             </div>
-            <div style="margin-top:24px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-                <button class="btn btn-primary" id="btnSubmitApplication" data-zh="送出 QSL 換卡申請" data-cn="提交 QSL 换卡申请" data-en="Submit QSL Request" data-ja="QSL申請を送信">送出 QSL 換卡申請</button>
-                <span id="selectedCountHint" style="font-size:0.85rem; color:#7e96af;"></span>
-            </div>
+
+            <button id="btnSubmitApplication" class="btn-primary" style="width: 100%; margin-top: 20px; padding: 15px; font-size: 1.1rem;" data-zh="送出 QSL 換卡申請" data-cn="提交 QSL 换卡申请" data-en="Submit QSL Request" data-ja="QSLカード申請を送信">送出 QSL 換卡申請</button>
         </section>
 
+        <!-- 我的申請紀錄 -->
         <section class="card">
-            <h2 data-zh="📬 我的申請紀錄" data-cn="📬 我的申请记录" data-en="📬 My Request History" data-ja="📬 申請履歴">📬 我的申請紀錄</h2>
-            <div class="card-sub" data-zh="以下為您已送出的 QSL 換卡申請。" data-cn="以下为您已送出的 QSL 换卡申请。" data-en="History of your submitted QSL requests." data-ja="送信済みのQSL申請履歴です。">以下為您已送出的 QSL 換卡申請。</div>
-            <div class="table-wrapper">
+            <h3 data-zh="📬 我的申請紀錄" data-cn="📬 我的申请记录" data-en="📬 My Requests" data-ja="📬 申請履歴">📬 我的申請紀錄</h3>
+            <div class="card-sub" data-zh="以下為您已送出的 QSL 換卡申請。" data-cn="以下为您已送出的 QSL 换卡申请。" data-en="Below are your submitted QSL requests." data-ja="以下は送信済みのQSLカード申請です。">以下為您已送出的 QSL 換卡申請。</div>
+            
+            <div class="table-wrapper" style="margin-top: 15px;">
                 <table>
                     <thead>
                         <tr>
                             <th data-zh="申請日期" data-cn="申请日期" data-en="Req Date" data-ja="申請日">申請日期</th>
-                            <th data-zh="通聯呼號" data-cn="通联呼号" data-en="Callsign" data-ja="コールサイン">通聯呼號</th>
+                            <th data-zh="通聯呼號" data-cn="通联呼号" data-en="QSO Call" data-ja="交信コールサイン">通聯呼號</th>
                             <th data-zh="通聯日期" data-cn="通联日期" data-en="QSO Date" data-ja="交信日">通聯日期</th>
-                            <th data-zh="頻段/模式" data-cn="频段/模式" data-en="Band / Mode" data-ja="バンド/モード">頻段/模式</th>
+                            <th data-zh="頻段/模式" data-cn="频段/模式" data-en="Band/Mode" data-ja="バンド/モード">頻段/模式</th>
                             <th data-zh="收件人" data-cn="收件人" data-en="Recipient" data-ja="受取人">收件人</th>
-                            <th data-zh="手機" data-cn="手机" data-en="Phone" data-ja="電話番号">手機</th>
-                            <th data-zh="地址" data-cn="地址" data-en="Address" data-ja="住所">地址</th>
-                            <th data-zh="申請狀態" data-cn="申请状态" data-en="Status" data-ja="ステータス">申請狀態</th>
+                            <!-- 隱藏了手機與地址的欄位，統一由「狀態」欄位顯示解鎖按鈕 -->
+                            <th data-zh="申請狀態 / 詳情" data-cn="申请状态 / 详情" data-en="Status / Details" data-ja="ステータス / 詳細">申請狀態 / 詳情</th>
                         </tr>
                     </thead>
                     <tbody id="myRequestsBody"></tbody>
                 </table>
             </div>
         </section>
-    </div>
-
-    <div class="lightbox" id="lightbox">
-        <span class="lightbox-close" id="lightboxClose">×</span>
-        <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
     <div id="toast" class="toast">操作成功</div>
