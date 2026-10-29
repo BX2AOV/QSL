@@ -473,18 +473,18 @@
         <!-- 管理員專用：上傳通聯紀錄 -->
         <div class="card admin-section" id="admin-panel">
             <h2>⚙️ 管理員專區 - 上傳通聯紀錄</h2>
-            <div class="card-sub">僅管理員可見。上傳 CSV 或手動新增通聯紀錄，供用戶交換 QSL 卡片。</div>
+            <div class="card-sub">僅管理員可見。上傳 ADIF 或手動新增通聯紀錄，供用戶交換 QSL 卡片。</div>
             
             <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px;">
                 <div style="flex:1; min-width:200px;">
-                    <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (CSV)</h3>
+                    <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (ADIF)</h3>
                     <div class="upload-zone" style="padding: 20px;">
-                        <input type="file" id="csvFile" accept=".csv" onchange="handleCSVSelect(event)" style="display:none;">
-                        <label for="csvFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 CSV 檔</label>
-                        <div class="file-hint" style="margin-top:6px;">格式：日期,呼號,頻段,模式,備註（每行一筆）</div>
-                        <div id="csvFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
+                        <input type="file" id="adifFile" accept=".adi,.adif" onchange="handleAdifSelect(event)" style="display:none;">
+                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
+                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式（業餘無線電標準通聯交換格式）</div>
+                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
                     </div>
-                    <button class="btn btn-primary" style="margin-top:12px;" onclick="uploadCSV()">上傳並匯入</button>
+                    <button class="btn btn-primary" style="margin-top:12px;" onclick="uploadADIF()">上傳並匯入</button>
                 </div>
                 <div style="flex:1; min-width:200px;">
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">✏️ 手動新增單筆</h3>
@@ -739,123 +739,150 @@
             selectedQSLFile = null;
         }
 
-        // ---------- 管理員：CSV 上傳 ----------
-        let selectedCSVFile = null;
-        function handleCSVSelect(event) {
+        // ---------- 管理員：ADIF 上傳 ----------
+        let selectedAdifFile = null;
+        function handleAdifSelect(event) {
             const file = event.target.files[0];
             if (file) {
-                selectedCSVFile = file;
-                document.getElementById('csvFileNameDisplay').textContent = `已選擇：${file.name}`;
+                selectedAdifFile = file;
+                document.getElementById('adifFileNameDisplay').textContent = `已選擇：${file.name}`;
             } else {
-                selectedCSVFile = null;
-                document.getElementById('csvFileNameDisplay').textContent = '';
+                selectedAdifFile = null;
+                document.getElementById('adifFileNameDisplay').textContent = '';
             }
         }
 
-        function uploadCSV() {
-            if (!selectedCSVFile) {
-                showToast('請先選擇 CSV 檔案');
+        // 解析 ADIF 文字，回傳紀錄陣列
+        function parseADIF(content) {
+            // 正規化：移除多餘空白、處理大小寫
+            const records = [];
+            let current = {};
+            let pos = 0;
+            const len = content.length;
+
+            // 跳過 ADIF 檔頭（如果有）
+            const headerEnd = content.toUpperCase().indexOf('<EOH>');
+            if (headerEnd !== -1) {
+                pos = headerEnd + 5; // 跳過 <EOH>
+            }
+
+            while (pos < len) {
+                // 尋找下一個標籤
+                const tagStart = content.indexOf('<', pos);
+                if (tagStart === -1) break;
+                const tagEnd = content.indexOf('>', tagStart);
+                if (tagEnd === -1) break;
+
+                const tagFull = content.substring(tagStart + 1, tagEnd).trim();
+                // 解析欄位名稱與長度：例如 CALL:6
+                const parts = tagFull.split(':');
+                const fieldName = parts[0].trim().toUpperCase();
+                let fieldLen = null;
+                if (parts.length > 1) {
+                    fieldLen = parseInt(parts[1].trim(), 10);
+                }
+
+                // 移動到標籤之後
+                pos = tagEnd + 1;
+
+                // 如果欄位有指定長度，讀取對應長度的值
+                let value = '';
+                if (fieldLen !== null && !isNaN(fieldLen)) {
+                    value = content.substring(pos, pos + fieldLen).trim();
+                    pos += fieldLen;
+                } else {
+                    // 沒有長度（例如 <EOR>），不讀取值
+                    if (fieldName === 'EOR') {
+                        // 結束一筆紀錄
+                        if (Object.keys(current).length > 0) {
+                            records.push({ ...current });
+                            current = {};
+                        }
+                        continue;
+                    }
+                    // 其他無長度標籤，跳過
+                    continue;
+                }
+
+                // 處理欄位
+                if (fieldName === 'EOR') {
+                    if (Object.keys(current).length > 0) {
+                        records.push({ ...current });
+                        current = {};
+                    }
+                } else if (fieldName === 'QSO_DATE') {
+                    // ADIF 日期格式為 YYYYMMDD，轉為 YYYY-MM-DD
+                    let d = value;
+                    if (d.length === 8) {
+                        d = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`;
+                    }
+                    current.date = d;
+                } else if (fieldName === 'CALL') {
+                    current.call = value.toUpperCase();
+                } else if (fieldName === 'BAND') {
+                    current.band = value;
+                } else if (fieldName === 'MODE') {
+                    current.mode = value.toUpperCase();
+                } else if (fieldName === 'FREQ') {
+                    // 如果有頻率但沒有 BAND，可依頻率推算
+                    if (!current.band) {
+                        const freq = parseFloat(value);
+                        if (!isNaN(freq)) {
+                            if (freq >= 1.8 && freq <= 2.0) current.band = '160m';
+                            else if (freq >= 3.5 && freq <= 4.0) current.band = '80m';
+                            else if (freq >= 7.0 && freq <= 7.3) current.band = '40m';
+                            else if (freq >= 10.1 && freq <= 10.15) current.band = '30m';
+                            else if (freq >= 14.0 && freq <= 14.35) current.band = '20m';
+                            else if (freq >= 18.068 && freq <= 18.168) current.band = '17m';
+                            else if (freq >= 21.0 && freq <= 21.45) current.band = '15m';
+                            else if (freq >= 24.89 && freq <= 24.99) current.band = '12m';
+                            else if (freq >= 28.0 && freq <= 29.7) current.band = '10m';
+                            else if (freq >= 50 && freq <= 54) current.band = '6m';
+                            else if (freq >= 144 && freq <= 148) current.band = '2m';
+                            else if (freq >= 430 && freq <= 440) current.band = '70cm';
+                        }
+                    }
+                } else if (fieldName === 'COMMENT') {
+                    current.note = (current.note || '') + value;
+                } else if (fieldName === 'NOTES') {
+                    current.note = (current.note || '') + value;
+                } else if (fieldName === 'QSL_SENT') {
+                    // 若已寄出，可標記狀態
+                    current._qslSent = value;
+                } else if (fieldName === 'QSL_RCVD') {
+                    current._qslRcvd = value;
+                }
+                // 其他欄位忽略
+            }
+
+            // 萬一最後一筆沒有 EOR，也加入
+            if (Object.keys(current).length > 0) {
+                records.push({ ...current });
+            }
+
+            return records;
+        }
+
+        function uploadADIF() {
+            if (!selectedAdifFile) {
+                showToast('請先選擇 ADIF 檔案');
                 return;
             }
             const reader = new FileReader();
             reader.onload = function(e) {
                 const content = e.target.result;
-                const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
+                const parsed = parseADIF(content);
                 let newRecords = [];
                 let errorCount = 0;
-                let startIndex = 0;
-                if (lines.length > 0 && lines[0].toLowerCase().includes('日期')) {
-                    startIndex = 1;
-                }
-                for (let i = startIndex; i < lines.length; i++) {
-                    const parts = lines[i].split(',').map(s => s.trim());
-                    if (parts.length < 4) { errorCount++; continue; }
-                    const [date, call, band, mode, note = ''] = parts;
-                    if (!date || !call || !band || !mode) { errorCount++; continue; }
-                    newRecords.push({
-                        id: Date.now() + i,
-                        date: date,
-                        call: call.toUpperCase(),
-                        band: band,
-                        mode: mode.toUpperCase(),
-                        qslStatus: 'pending',
-                        note: note || ''
-                    });
-                }
-                if (newRecords.length > 0) {
-                    qslRecords = [...qslRecords, ...newRecords];
-                    saveData(qslRecords);
-                    renderTables();
-                    showToast(`✅ 成功匯入 ${newRecords.length} 筆紀錄${errorCount > 0 ? `，${errorCount} 筆格式錯誤已跳過` : ''}`);
-                } else {
-                    showToast('⚠️ 未找到有效資料，請確認 CSV 格式');
-                }
-                document.getElementById('csvFile').value = '';
-                document.getElementById('csvFileNameDisplay').textContent = '';
-                selectedCSVFile = null;
-            };
-            reader.readAsText(selectedCSVFile);
-        }
 
-        // ---------- 管理員：手動新增 ----------
-        function addManualRecord() {
-            const date = document.getElementById('manualDate').value.trim();
-            const call = document.getElementById('manualCall').value.trim();
-            const band = document.getElementById('manualBand').value.trim();
-            const mode = document.getElementById('manualMode').value.trim();
-            const note = document.getElementById('manualNote').value.trim();
+                for (const p of parsed) {
+                    if (!p.call) { errorCount++; continue; }
+                    // 決定 QSL 狀態
+                    let qslStatus = 'pending';
+                    if (p._qslRcvd && (p._qslRcvd.toUpperCase() === 'Y')) {
+                        qslStatus = 'received';
+                    } else if (p._qslSent && (p._qslSent.toUpperCase() === 'Y')) {
+                        qslStatus = 'sent';
+                    }
 
-            if (!date || !call || !band || !mode) {
-                showToast('請填寫日期、呼號、頻段、模式');
-                return;
-            }
-
-            const newRecord = {
-                id: Date.now(),
-                date: date,
-                call: call.toUpperCase(),
-                band: band,
-                mode: mode.toUpperCase(),
-                qslStatus: 'pending',
-                note: note
-            };
-            qslRecords.push(newRecord);
-            saveData(qslRecords);
-            renderTables();
-
-            document.getElementById('manualDate').value = '';
-            document.getElementById('manualCall').value = '';
-            document.getElementById('manualBand').value = '';
-            document.getElementById('manualMode').value = '';
-            document.getElementById('manualNote').value = '';
-
-            showToast(`✅ 已新增通聯紀錄 ${newRecord.call}`);
-        }
-
-        // ---------- 平滑滾動 ----------
-        function scrollToSection(sectionId) {
-            const section = document.getElementById(sectionId);
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-        // ---------- 初始化 ----------
-        function init() {
-            qslRecords = qslRecords.map((r, index) => {
-                if (!r.id) r.id = Date.now() + index;
-                return r;
-            });
-            saveData(qslRecords);
-            updateAdminUI();
-            renderTables();
-
-            document.getElementById('adminPassword').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') loginAdmin();
-            });
-        }
-
-        init();
-    </script>
-</body>
-</html>
+                    newRecords
