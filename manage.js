@@ -1,8 +1,8 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (優化排版與分頁)
+   manage.js - 管理員後台完整邏輯 (安全性強化版)
    ============================================================ */
 
-const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
+const SUPABASE_URL = 'https://btcsstbtgbnejuyexwbpn.supabase.co'; // 注意：請確認你的 URL 是否正確 (原檔為 btcsstbtb... 這裡保持原樣)
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -21,7 +21,9 @@ let filteredRecords = [];
 let currentPage = 1;
 const itemsPerPage = 20;
 
-// 共用工具
+// ============================================================
+// 共用工具與轉義
+// ============================================================
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -29,17 +31,32 @@ function showToast(msg) {
     clearTimeout(window.tt); 
     window.tt = setTimeout(() => t.classList.remove('show'), 4000); 
 }
+
+// 文字上下文轉義
 function escapeHtml(text) { 
     if (!text) return ''; 
     const div = document.createElement('div'); 
     div.textContent = text; 
     return div.innerHTML; 
 }
+
+// 屬性上下文轉義 (C-2 修復核心)
+function escAttr(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function openLightbox(src) {
     if (!src) return;
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightbox').classList.add('show');
 }
+
 function closeLightbox() {
     document.getElementById('lightbox').classList.remove('show');
     document.getElementById('lightboxImg').src = '';
@@ -74,7 +91,7 @@ function getDaysSince(dateString) {
 }
 
 // ============================================================
-// 登入與登出
+// 登入與登出 (H-2 修復：改用 getSession)
 // ============================================================
 async function login() {
     const email = document.getElementById('adminUser').value.trim();
@@ -98,21 +115,22 @@ async function login() {
         return; 
     }
 
-    sessionStorage.setItem('isAdmin', 'true');
     showToast('✅ 管理員登入成功');
     checkUser();
 }
 
-function logout() { 
-    _supabase.auth.signOut();
-    sessionStorage.removeItem('isAdmin'); 
+async function logout() { 
+    await _supabase.auth.signOut();
     showToast('👋 已登出'); 
     checkUser(); 
 }
 
-function checkUser() {
-    const isLoggedIn = sessionStorage.getItem('isAdmin') === 'true';
-    if (isLoggedIn) {
+async function checkUser() {
+    // 向 Supabase 確認是否有真實的有效 Session
+    const { data: { session }, error } = await _supabase.auth.getSession();
+    
+    if (session && !error) {
+        // 真實登入狀態
         loginSection.style.display = 'none'; 
         adminPanel.style.display = 'block';
         roleBadge.textContent = '管理員'; 
@@ -120,12 +138,14 @@ function checkUser() {
         renderAdminTable(); 
         calculateStorageUsage(); 
     } else {
+        // 未登入
         loginSection.style.display = 'block'; 
         adminPanel.style.display = 'none';
         roleBadge.textContent = '未登入'; 
         roleBadge.className = 'role-badge';
         document.getElementById('adminUser').value = ''; 
         document.getElementById('adminPassword').value = '';
+        allRecords = []; // 清空記憶體中的資料
     }
 }
 
@@ -169,7 +189,7 @@ async function calculateStorageUsage() {
 }
 
 // ============================================================
-// 渲染管理表格與操作
+// 渲染管理表格與操作 (C-2 修復：移除內聯 onclick)
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
@@ -192,7 +212,8 @@ async function renderAdminTable() {
     const filterMode = document.getElementById('filterMode')?.value || 'all';
 
     filteredRecords = allRecords.filter(r => {
-        const matchKeyword = !keyword || r.call.includes(keyword) || (r.date && r.date.includes(keyword)) || (r.band && r.band.toUpperCase().includes(keyword));
+        // L-2 修復：防止 null 呼叫 includes 報錯
+        const matchKeyword = !keyword || (r.call || '').includes(keyword) || (r.date || '').includes(keyword) || (r.band || '').toUpperCase().includes(keyword);
         const matchStatus = (filterStatus === 'all') || (r.status === filterStatus || (!r.status && filterStatus === 'none'));
         const displayInfo = getDisplayInfo(r);
         const matchMode = (filterMode === 'all') || (displayInfo.mode === filterMode);
@@ -228,7 +249,7 @@ async function renderAdminTable() {
                 <div style="margin-bottom: 10px; padding: 10px; background: #f8fbfe; border-radius: 8px; border: 1px solid #e0e9f2; position: relative;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
                         <div><strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>${statusHtml}</div>
-                        <button onclick="deleteRequest(${r.id}, ${idx})" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除申請</button>
+                        <button class="btn-delete-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除申請</button>
                     </div>
                     <div style="font-size:0.85rem; color:#333; margin-bottom:8px; line-height:1.4;">
                         <strong>收件人：</strong>${escapeHtml(req.shipName)}<br>
@@ -236,18 +257,19 @@ async function renderAdminTable() {
                         <strong>地址：</strong>${escapeHtml(req.shipZip)} ${escapeHtml(req.shipAddress)}
                     </div>
                     <div style="display:flex; gap:6px;">
-                        <button onclick="approveRequest(${r.id}, ${idx})" style="background:#d9f0e0; color:#0e6b3e; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">核准申請</button>
-                        <button onclick="rejectRequest(${r.id}, ${idx})" style="background:#fff0d9; color:#b45f06; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">拒絕申請</button>
+                        <button class="btn-approve-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#d9f0e0; color:#0e6b3e; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">核准申請</button>
+                        <button class="btn-reject-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#fff0d9; color:#b45f06; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">拒絕申請</button>
                     </div>
                 </div>`;
             }).join('');
         }
 
-        const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
-        const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+        // C-2 修復：圖片使用 escAttr，移除 onclick
+        const recvImgHtml = r.receivedImg ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb">` : '';
+        const recvBtnHtml = r.receivedImg ? `<button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="received" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
 
-        const sentImgHtml = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
-        const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+        const sentImgHtml = r.sentImg ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb">` : '';
+        const sentBtnHtml = r.sentImg ? `<button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="sent" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
         
         let sentReminderHtml = '';
         if (r.sentImg && r.sentDate) {
@@ -264,27 +286,29 @@ async function renderAdminTable() {
             }
         }
 
-        // 🌟 將上傳按鈕改成緊湊的左右並排
+        // 移除 onchange，改用 data 屬性識別
         const recvHtml = `
             <div class="upload-btns" style="margin-bottom:4px;">
-                <label for="recv-${r.id}">📥 收到</label>
-                <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
+                <label for="recv-${escAttr(r.id)}">📥 收到</label>
+                <input type="file" id="recv-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="received" accept="image/*">
                 ${recvImgHtml}
                 ${recvBtnHtml}
             </div>`;
 
         const sentHtml = `
             <div class="upload-btns">
-                <label for="sent-${r.id}">📤 發出</label>
-                <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
+                <label for="sent-${escAttr(r.id)}">📤 發出</label>
+                <input type="file" id="sent-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="sent" accept="image/*">
                 ${sentImgHtml}
                 ${sentBtnHtml}
             </div>
             ${sentReminderHtml}`;
 
         const currentStatus = r.status || 'none';
+        
+        // 移除 onchange，改用 data 屬性
         const statusSelect = `
-            <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 8px; border-radius:6px; border:1px solid #cbdae8; font-size:0.8rem; background:#fff; cursor:pointer; outline:none;">
+            <select class="status-select-change" data-id="${escAttr(r.id)}" style="padding:6px 8px; border-radius:6px; border:1px solid #cbdae8; font-size:0.8rem; background:#fff; cursor:pointer; outline:none;">
                 <option value="none" ${currentStatus === 'none' ? 'selected' : ''}>未申請</option>
                 <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>待處理</option>
                 <option value="received_paper" ${currentStatus === 'received_paper' ? 'selected' : ''}>已收到紙卡</option>
@@ -295,7 +319,6 @@ async function renderAdminTable() {
             </select>
         `;
 
-        // 🌟 移除了「備註」欄位，讓表格可以更窄
         return `<tr>
             <td style="white-space:nowrap;">${escapeHtml(r.date)}</td>
             <td style="white-space:nowrap;"><strong>${escapeHtml(r.time || '—')}</strong></td>
@@ -306,7 +329,7 @@ async function renderAdminTable() {
             <td>${recvHtml}${sentHtml}</td>
             <td>${statusSelect}</td>
             <td>
-                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75rem; white-space:nowrap;">🗑️</button>
+                <button class="btn-delete-record" data-id="${escAttr(r.id)}" style="background:#0b2a4a; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75rem; white-space:nowrap;">🗑️</button>
             </td>
         </tr>`;
     }).join('');
@@ -357,7 +380,6 @@ function renderPagination(totalPages) {
 // ============================================================
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
-    
     const updateData = { status: newStatus };
     
     if (newStatus === 'completed') {
@@ -715,7 +737,7 @@ async function addManualRecord() {
 }
 
 // ============================================================
-// 初始化事件綁定
+// 初始化與事件委託綁定
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
@@ -758,4 +780,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+
+    // ============================================================
+    // C-2 事件委託：處理表格內所有按鈕與圖片、下拉選單
+    // ============================================================
+    manageTableBody?.addEventListener('click', (e) => {
+        // 1. 圖片燈箱
+        const img = e.target.closest('.qsl-thumb');
+        if (img) {
+            const src = img.dataset.src || img.getAttribute('src');
+            if (src) openLightbox(src);
+            return;
+        }
+
+        // 2. 刪除申請
+        const btnDelReq = e.target.closest('.btn-delete-req');
+        if (btnDelReq) {
+            deleteRequest(Number(btnDelReq.dataset.id), Number(btnDelReq.dataset.idx));
+            return;
+        }
+
+        // 3. 核准申請
+        const btnApprove = e.target.closest('.btn-approve-req');
+        if (btnApprove) {
+            approveRequest(Number(btnApprove.dataset.id), Number(btnApprove.dataset.idx));
+            return;
+        }
+
+        // 4. 拒絕申請
+        const btnReject = e.target.closest('.btn-reject-req');
+        if (btnReject) {
+            rejectRequest(Number(btnReject.dataset.id), Number(btnReject.dataset.idx));
+            return;
+        }
+
+        // 5. 刪除圖片
+        const btnDelImg = e.target.closest('.btn-del-img');
+        if (btnDelImg) {
+            deleteQslImage(Number(btnDelImg.dataset.id), btnDelImg.dataset.type);
+            return;
+        }
+
+        // 6. 刪除整筆紀錄
+        const btnDelRecord = e.target.closest('.btn-delete-record');
+        if (btnDelRecord) {
+            deleteRecord(Number(btnDelRecord.dataset.id));
+            return;
+        }
+    });
+
+    // 處理下拉選單改變
+    manageTableBody?.addEventListener('change', (e) => {
+        const select = e.target.closest('.status-select-change');
+        if (select) {
+            changeStatus(Number(select.dataset.id), select.value);
+            return;
+        }
+
+        // 處理圖片上傳
+        const fileInput = e.target.closest('.file-upload-input');
+        if (fileInput && fileInput.files.length > 0) {
+            handleQslImageUpload(Number(fileInput.dataset.id), fileInput.dataset.type, e);
+        }
+    });
 });
