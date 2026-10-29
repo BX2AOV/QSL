@@ -517,9 +517,17 @@ async function handleQslImageUpload(recordId, type, event) {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-            const res = await fetch(compressedBase64);
-            const blob = await res.blob();
+            // 直接用 canvas.toBlob 產生檔案，不要 fetch(dataURL)
+            // （CSP 的 connect-src 不含 data:，fetch 會被擋下）
+            const blob = await new Promise((resolve) => {
+                canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8);
+            });
+
+            if (!blob) {
+                showToast('❌ 圖片處理失敗，請換一張圖片再試');
+                event.target.value = '';
+                return;
+            }
             
             const fileExt = 'jpg';
             const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
