@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (支援自訂國碼與無需手機)
+   apply.js - 申請頁面專用邏輯 (包含四國語言與自訂國碼)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -9,7 +9,7 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentLang = localStorage.getItem('site_lang') || 'zh';
 
 // ============================================================
-// 語言切換核心邏輯
+// 🌟 核心：精準點擊哪個語言就切換
 // ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
@@ -101,7 +101,6 @@ window.selectCountry = function(code) {
     document.getElementById('countryCodeWrapper').classList.remove('open');
 };
 
-// 點擊外部關閉選單
 document.addEventListener('click', function(e) {
     const wrapper = document.getElementById('countryCodeWrapper');
     if (wrapper && !wrapper.contains(e.target)) {
