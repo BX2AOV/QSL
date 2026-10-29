@@ -61,7 +61,6 @@
     <script>
         // apply.html 專用初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 顯示目前呼號
             const display = document.getElementById('applyCallsignDisplay');
             if (display) {
                 if (userCallsign) {
@@ -70,7 +69,6 @@
                     display.innerHTML = '<span style="color:#b8cee4;">尚未設定呼號，請先回總覽設定</span>';
                 }
             }
-            // 渲染申請列表
             renderMyRequests();
         });
     </script>
