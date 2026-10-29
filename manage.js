@@ -579,14 +579,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
-    // 👇 呼叫 sync-lotw 按鈕事件 👇
+    // 👇 呼叫 swift-task 按鈕事件 (已修正名稱) 👇
     document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
         const btn = this;
         btn.disabled = true;
         btn.textContent = '⏳ 正在從 LoTW 抓取資料...';
 
-        // 呼叫你剛剛部署的 Edge Function (名稱是 sync-lotw)
-        const { data, error } = await _supabase.functions.invoke('sync-lotw');
+        // 呼叫你剛剛部署的 Edge Function (名稱是 swift-task)
+        const { data, error } = await _supabase.functions.invoke('swift-task');
 
         btn.disabled = false;
         btn.textContent = '🔄 從 LoTW 自動同步已確認卡片';
