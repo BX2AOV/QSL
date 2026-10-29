@@ -71,12 +71,13 @@ commit;
 -- 第二部分：開放管理員存取（填好 Email 再跑）
 -- ============================================================
 
--- TODO ↓↓↓ 把這裡改成你的管理員 Email ↓↓↓
---        （就是 manage 頁面登入時用的那組 Email）
+-- 前提：Supabase 的「開放註冊」必須是關閉的
+--       (Authentication → Sign In / Providers → Allow new users to sign up = OFF)
+--       關閉後，authenticated 只會是你在 Dashboard 手動建立的帳號，
+--       所以直接給 authenticated 權限是安全的。
 --
---   注意：因為 Supabase 的「開放註冊」目前是開著的，所以不能單純寫
---   「只要是 authenticated 就給權限」，否則任何人自己註冊就能讀寫。
---   一定要綁定 Email。
+-- ⚠️ 如果你之後重新開啟註冊，請改成綁定 Email：
+--    using ( (auth.jwt() ->> 'email') = '你的管理員Email' )
 
 begin;
 
@@ -86,8 +87,8 @@ create policy "admin full access"
   on public.qsl_records
   for all
   to authenticated
-  using      ( (auth.jwt() ->> 'email') = 'CHANGE_ME@example.com' )
-  with check ( (auth.jwt() ->> 'email') = 'CHANGE_ME@example.com' );
+  using      ( true )
+  with check ( true );
 
 -- 管理員需要這張表的完整權限
 grant select, insert, update, delete on table public.qsl_records to authenticated;
