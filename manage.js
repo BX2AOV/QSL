@@ -83,51 +83,6 @@ function checkUser() {
 }
 
 // ============================================================
-// 網頁版本檢測 (CF 更新檢查)
-// ============================================================
-async function checkUpdate() {
-    const statusEl = document.getElementById('updateStatus');
-    const btn = document.getElementById('btnCheckUpdate');
-    
-    statusEl.innerHTML = '⏳ 正在向 Cloudflare 檢查檔案更新...';
-    btn.disabled = true;
-
-    try {
-        const filesToCheck = ['manage.js', 'manage.html', 'style.css'];
-        let totalServerBytes = 0;
-
-        for (const file of filesToCheck) {
-            const response = await fetch(`${file}?t=${new Date().getTime()}`, { cache: 'no-store' });
-            const text = await response.text();
-            totalServerBytes += text.length;
-        }
-
-        const lastKnownBytes = sessionStorage.getItem('lastServerBytes');
-
-        if (!lastKnownBytes) {
-            sessionStorage.setItem('lastServerBytes', totalServerBytes);
-            statusEl.innerHTML = `📌 <b>已建立基準點</b><br>目前檔案總大小：${(totalServerBytes / 1024).toFixed(1)} KB`;
-            statusEl.style.color = '#5a6e85';
-        } else {
-            const diff = Math.abs(totalServerBytes - parseInt(lastKnownBytes, 10));
-            
-            if (diff > 10) {
-                statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案大小已改變。<br>請重新整理載入最新畫面。`;
-                statusEl.style.color = '#0e6b3e';
-                sessionStorage.setItem('lastServerBytes', totalServerBytes);
-            } else {
-                statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>核心檔案大小未改變。`;
-                statusEl.style.color = '#5a6e85';
-            }
-        }
-    } catch (error) {
-        statusEl.innerHTML = '❌ 檢查失敗，請確認網路連線。';
-        statusEl.style.color = '#b03030';
-    }
-    btn.disabled = false;
-}
-
-// ============================================================
 // 雲端空間監測
 // ============================================================
 async function calculateStorageUsage() {
@@ -167,16 +122,16 @@ async function calculateStorageUsage() {
 }
 
 // ============================================================
-// 渲染管理表格與操作 (包含圖片刪除按鈕)
+// 渲染管理表格與操作
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
-    manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
+    manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
 
     const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
 
-    if (error) { manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
-    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
+    if (error) { manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
+    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
 
     manageTableBody.innerHTML = data.map(r => {
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
@@ -206,7 +161,7 @@ async function renderAdminTable() {
             }).join('');
         }
 
-        // 這裡重新排版圖片區塊，加上明顯的刪除按鈕
+        // 圖片區塊
         const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.receivedImg}')">` : '';
         const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
 
@@ -236,32 +191,44 @@ async function renderAdminTable() {
             <td>${escapeHtml(r.mode)}</td>
             <td>${reqHtml}</td>
             <td>${recvHtml}${sentHtml}</td>
+            <td>
+                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; white-space:nowrap;">🗑️ 刪除整筆</button>
+            </td>
         </tr>`;
     }).join('');
 }
 
-// ---------- 刪除單筆圖片 (從 Storage 與資料庫移除) ----------
+// ---------- 刪除整筆通聯紀錄 ----------
+async function deleteRecord(recordId) {
+    if (!confirm('⚠️ 警告：您確定要刪除這筆通聯紀錄嗎？\n這將會連同該筆的所有申請資料一起刪除！')) return;
+
+    showToast('⏳ 正在刪除...');
+    const { error } = await _supabase.from('qsl_records').delete().eq('id', recordId);
+
+    if (error) {
+        showToast('❌ 刪除失敗：' + error.message);
+    } else {
+        showToast('🗑️ 已成功刪除該筆通聯紀錄');
+        renderAdminTable();
+        calculateStorageUsage();
+    }
+}
+
+// ---------- 刪除單筆圖片 ----------
 async function deleteQslImage(recordId, type) {
     if (!confirm(`確定要刪除這張「${type === 'received' ? '收到' : '發出'}」的 QSL 圖片嗎？`)) return;
 
-    // 1. 從資料庫取得該圖片的網址
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('receivedImg, sentImg').eq('id', recordId).single();
     if (fetchError || !record) { showToast('❌ 找不到紀錄'); return; }
 
     const imgUrl = type === 'received' ? record.receivedImg : record.sentImg;
     if (!imgUrl) return;
 
-    // 2. 解析檔名，準備從 Storage 刪除實體檔案
     try {
         const fileName = imgUrl.split('/').pop();
-        if (fileName) {
-            await _supabase.storage.from('qsl-images').remove([fileName]);
-        }
-    } catch (e) {
-        console.error('Storage 實體檔案刪除失敗:', e);
-    }
+        if (fileName) await _supabase.storage.from('qsl-images').remove([fileName]);
+    } catch (e) { console.error('Storage 刪除失敗:', e); }
 
-    // 3. 清空資料庫欄位
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
 
@@ -269,11 +236,10 @@ async function deleteQslImage(recordId, type) {
 
     if (dbError) {
         showToast('❌ 刪除失敗');
-        console.error(dbError);
     } else {
         showToast('🗑️ 圖片已刪除');
         renderAdminTable();
-        calculateStorageUsage(); // 重新計算空間
+        calculateStorageUsage();
     }
 }
 
@@ -433,7 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
-    document.getElementById('btnCheckUpdate')?.addEventListener('click', checkUpdate);
 
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
