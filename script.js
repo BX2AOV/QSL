@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯 (包含搜尋與分頁)
+   script.js - 首頁（總覽）專用邏輯 (包含搜尋與多語系分頁)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -21,6 +21,8 @@ window.changeLang = function(lang) {
     currentLang = lang;
     localStorage.setItem('site_lang', currentLang);
     applyLanguage();
+    // 🌟 切換語言時，如果已經有表格，重新渲染以更新分頁文字
+    if (qslRecords.length > 0) renderMainTable();
 };
 
 function applyLanguage() {
@@ -41,8 +43,6 @@ function applyLanguage() {
 
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
-
-    if (qslRecords.length > 0) renderMainTable();
 }
 
 // ============================================================
@@ -62,7 +62,7 @@ function computeQslStatus(r) {
     if (r.status === 'not_needed') return { cls: 'badge-not-needed', text: t[lang].not_needed }; 
     if (r.status === 'received_paper') return { cls: 'badge-received', text: t[lang].paper };
     if (r.status === 'sent') return { cls: 'badge-sent', text: t[lang].sent };
-    if (r.status === 'pending') return { cls: 'badge-pending', text: t[lang].text };
+    if (r.status === 'pending') return { cls: 'badge-pending', text: t[lang].pending };
 
     if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: t[lang].both };
     if (r.receivedImg) return { cls: 'badge-received', text: t[lang].rcvd };
@@ -116,7 +116,7 @@ async function fetchData() {
 
     qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
     filteredRecords = [...qslRecords]; 
-    currentPage = 1; // 載入新資料時重置到第一頁
+    currentPage = 1;
     renderMainTable();
 }
 
@@ -129,11 +129,10 @@ function renderMainTable() {
     if (recordsToShow.length === 0) {
         const emptyText = { zh: '📭 目前沒有通聯紀錄', cn: '📭 目前没有通联记录', en: '📭 No QSO records found', ja: '📭 交信記録がありません' };
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
-        updatePagination(0, 1); // 隱藏分頁
+        updatePagination(0, 1); 
         return;
     }
 
-    // 🌟 計算分頁範圍
     const totalPages = Math.ceil(recordsToShow.length / itemsPerPage);
     if (currentPage > totalPages) currentPage = totalPages;
     if (currentPage < 1) currentPage = 1;
@@ -191,15 +190,13 @@ function renderMainTable() {
         </tr>`;
     }).join('');
 
-    // 🌟 更新分頁按鈕
     updatePagination(recordsToShow.length, totalPages);
 }
 
-// 🌟 動態生成分頁按鈕
+// 🌟 動態生成多語系分頁按鈕
 function updatePagination(totalItems, totalPages) {
     let paginationContainer = document.getElementById('paginationContainer');
     
-    // 如果沒有容器，就動態創建一個放在表格下面
     if (!paginationContainer) {
         paginationContainer = document.createElement('div');
         paginationContainer.id = 'paginationContainer';
@@ -219,10 +216,19 @@ function updatePagination(totalItems, totalPages) {
     const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
     const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
 
+    // 🌟 分頁多語系字典
+    const paginationText = {
+        zh: { prev: '上一頁', next: '下一頁', page: '頁' },
+        cn: { prev: '上一页', next: '下一页', page: '页' },
+        en: { prev: 'Prev', next: 'Next', page: 'Page' },
+        ja: { prev: '前へ', next: '次へ', page: 'ページ' }
+    };
+    const t = paginationText[currentLang] || paginationText['zh'];
+
     paginationContainer.innerHTML = `
-        <button id="btnPrevPage" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
-        <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">第 ${currentPage} / ${totalPages} 頁</span>
-        <button id="btnNextPage" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
+        <button id="btnPrevPage" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>${t.prev}</button>
+        <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">${t.page} ${currentPage} / ${totalPages}</span>
+        <button id="btnNextPage" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>${t.next}</button>
     `;
 
     document.getElementById('btnPrevPage').addEventListener('click', () => {
@@ -256,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
             }
-            currentPage = 1; // 搜尋時重置到第一頁
+            currentPage = 1;
             renderMainTable();
         });
     }
