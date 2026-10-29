@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (四國語言版)
+   apply.js - 申請頁面專用邏輯 (精準切換語言版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -8,9 +8,13 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
 
-// ============================================================
-// 語言切換核心邏輯
-// ============================================================
+// 🌟 精準切換語言
+window.changeLang = function(lang) {
+    currentLang = lang;
+    localStorage.setItem('site_lang', currentLang);
+    applyLanguage();
+};
+
 function applyLanguage() {
     document.querySelectorAll('[data-zh]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}`)) {
@@ -29,20 +33,13 @@ function applyLanguage() {
 
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
+
+    // 如果在申請頁，更新申請紀錄
+    if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
+        renderMyRequests();
+    }
 }
 
-document.getElementById('langToggle')?.addEventListener('click', () => {
-    const langs = ['zh', 'cn', 'en', 'ja'];
-    let idx = langs.indexOf(currentLang);
-    idx = (idx + 1) % langs.length;
-    currentLang = langs[idx];
-    localStorage.setItem('site_lang', currentLang);
-    applyLanguage();
-});
-
-// ============================================================
-// 共用工具與狀態
-// ============================================================
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -102,7 +99,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedCountHint = document.getElementById('selectedCountHint');
     const btnSubmit = document.getElementById('btnSubmitApplication');
 
-    // 先套用語言
     applyLanguage();
 
     const savedCall = localStorage.getItem('user_callsign');
@@ -179,7 +175,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>`;
         }).join('');
 
-        // 語言切換後重新綁定 data 屬性
         applyLanguage();
 
         document.querySelectorAll('.record-checkbox').forEach(cb => {
@@ -250,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             btnSubmit.disabled = false; 
-            btnSubmit.textContent = '送出 QSL 換卡申請'; // 會由 applyLanguage() 翻譯
-            applyLanguage(); // 恢復按鈕文字
+            btnSubmit.textContent = '送出 QSL 換卡申請';
+            applyLanguage();
             
             const successText = { zh: `✅ 已送出 ${count} 筆申請`, cn: `✅ 已提交 ${count} 条申请`, en: `✅ Submitted ${count} request(s)`, ja: `✅ ${count}件の申請を送信しました` };
             const failText = { zh: '⚠️ 部分失敗', cn: '⚠️ 部分失败', en: '⚠️ Partial failure', ja: '⚠️ 一部失敗しました' };
