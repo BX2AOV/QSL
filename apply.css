@@ -1,3 +1,7 @@
+/* ============================================================
+   apply.html 專用樣式
+   ============================================================ */
+
 /* ===== 1. 查詢呼號區塊 ===== */
 .user-callsign-area {
     display: flex;
@@ -60,6 +64,7 @@
     margin-left: 2px;
 }
 
+/* 輸入框美化 (包含文字與電話) */
 .ship-form .form-row input[type="text"],
 .ship-form .form-row input[type="tel"] {
     width: 100%;
@@ -76,6 +81,7 @@
     box-sizing: border-box;
 }
 
+/* 輸入框 Focus 效果 */
 .ship-form .form-row input[type="text"]:focus,
 .ship-form .form-row input[type="tel"]:focus {
     border-color: #0066cc;
@@ -83,11 +89,24 @@
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
 }
 
+/* Placeholder 提示文字顏色 */
 .ship-form .form-row input::placeholder {
     color: #a0b2c6;
     font-weight: 400;
 }
 
+/* ===== 地址提示文字 ===== */
+.address-hint {
+    font-size: 0.8rem;
+    color: #0066cc;
+    margin-bottom: 4px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ===== 3. 排版優化 (並排與響應式) ===== */
 .row-group {
     display: flex;
     gap: 16px;
