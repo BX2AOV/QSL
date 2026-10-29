@@ -1,3 +1,7 @@
+/* ============================================================
+   manage.js - 管理員後台完整邏輯
+   ============================================================ */
+
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -7,10 +11,36 @@ const adminPanel = document.getElementById('adminPanel');
 const roleBadge = document.getElementById('roleBadge');
 const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
+const manageTableBody = document.getElementById('manageTableBody');
 let selectedAdifFile = null;
 
-function showToast(msg) { const t = document.getElementById('toast'); if(!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(window.tt); window.tt = setTimeout(() => t.classList.remove('show'), 2500); }
+// 共用工具
+function showToast(msg) { 
+    const t = document.getElementById('toast'); 
+    if(!t) return; 
+    t.textContent = msg; t.classList.add('show'); 
+    clearTimeout(window.tt); 
+    window.tt = setTimeout(() => t.classList.remove('show'), 2500); 
+}
+function escapeHtml(text) { 
+    if (!text) return ''; 
+    const div = document.createElement('div'); 
+    div.textContent = text; 
+    return div.innerHTML; 
+}
+function openLightbox(src) {
+    if (!src) return;
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+    document.getElementById('lightboxImg').src = '';
+}
 
+// ============================================================
+// 登入與登出
+// ============================================================
 async function login() {
     const user = document.getElementById('adminUser').value.trim();
     const password = document.getElementById('adminPassword').value.trim();
@@ -18,8 +48,8 @@ async function login() {
 
     btnLogin.disabled = true; btnLogin.textContent = '登入中...';
     const { data, error } = await _supabase.from('admins').select('*').eq('username', user).eq('password', password).single();
-
     btnLogin.disabled = false; btnLogin.textContent = '登入';
+
     if (error || !data) { showToast('❌ 帳號或密碼錯誤'); return; }
 
     sessionStorage.setItem('isAdmin', 'true');
@@ -27,20 +57,173 @@ async function login() {
     checkUser();
 }
 
-function logout() { sessionStorage.removeItem('isAdmin'); showToast('👋 已登出'); checkUser(); }
+function logout() { 
+    sessionStorage.removeItem('isAdmin'); 
+    showToast('👋 已登出'); 
+    checkUser(); 
+}
 
 function checkUser() {
     const isLoggedIn = sessionStorage.getItem('isAdmin') === 'true';
     if (isLoggedIn) {
-        loginSection.style.display = 'none'; adminPanel.style.display = 'block';
-        roleBadge.textContent = '管理員'; roleBadge.className = 'role-badge admin';
+        loginSection.style.display = 'none'; 
+        adminPanel.style.display = 'block';
+        roleBadge.textContent = '管理員'; 
+        roleBadge.className = 'role-badge admin';
+        renderAdminTable(); // 登入後立刻載入資料
     } else {
-        loginSection.style.display = 'block'; adminPanel.style.display = 'none';
-        roleBadge.textContent = '未登入'; roleBadge.className = 'role-badge';
-        document.getElementById('adminUser').value = ''; document.getElementById('adminPassword').value = '';
+        loginSection.style.display = 'block'; 
+        adminPanel.style.display = 'none';
+        roleBadge.textContent = '未登入'; 
+        roleBadge.className = 'role-badge';
+        document.getElementById('adminUser').value = ''; 
+        document.getElementById('adminPassword').value = '';
     }
 }
 
+// ============================================================
+// 渲染管理表格與操作
+// ============================================================
+async function renderAdminTable() {
+    if (!manageTableBody) return;
+    manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
+
+    const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
+
+    if (error) {
+        manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">資料載入失敗</div></td></tr>';
+        return;
+    }
+
+    if (data.length === 0) {
+        manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>';
+        return;
+    }
+
+    manageTableBody.innerHTML = data.map(r => {
+        // 處理使用者的申請列表
+        let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
+        if (r.requests && r.requests.length > 0) {
+            reqHtml = r.requests.map((req, idx) => {
+                let statusHtml = '';
+                if (req.status === 'pending') statusHtml = '<span class="badge-pending" style="margin-left:4px;">待處理</span>';
+                else if (req.status === 'approved') statusHtml = '<span class="badge-approved" style="margin-left:4px;">已核准</span>';
+                else if (req.status === 'rejected') statusHtml = '<span class="badge-rejected" style="margin-left:4px;">已拒絕</span>';
+
+                return `
+                <div style="margin-bottom: 10px; padding: 10px; background: #f8fbfe; border-radius: 8px; border: 1px solid #e0e9f2; position: relative;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                        <div>
+                            <strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>
+                            ${statusHtml}
+                        </div>
+                        <button onclick="deleteRequest(${r.id}, ${idx})" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>
+                    </div>
+                    <div style="font-size:0.85rem; color:#333; margin-bottom:8px; line-height:1.4;">
+                        <strong>收件人：</strong>${escapeHtml(req.shipName)}<br>
+                        <strong>手機：</strong>${escapeHtml(req.shipPhone)}<br>
+                        <strong>地址：</strong>${escapeHtml(req.shipZip)} ${escapeHtml(req.shipAddress)}
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button onclick="approveRequest(${r.id}, ${idx})" style="background:#d9f0e0; color:#0e6b3e; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">核准申請</button>
+                        <button onclick="rejectRequest(${r.id}, ${idx})" style="background:#fff0d9; color:#b45f06; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">拒絕申請</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // 處理圖片上傳區塊
+        const recvHtml = `
+            <div class="upload-btns" style="margin-bottom:6px;">
+                <label for="recv-${r.id}">📥 收到</label>
+                <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
+                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg}')">` : '<span style="color:#b8cee4; font-size:0.8rem;">未上傳</span>'}
+            </div>`;
+        const sentHtml = `
+            <div class="upload-btns">
+                <label for="sent-${r.id}">📤 發出</label>
+                <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
+                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg}')">` : '<span style="color:#b8cee4; font-size:0.8rem;">未上傳</span>'}
+            </div>`;
+
+        return `<tr>
+            <td>${escapeHtml(r.date)}</td>
+            <td><strong>${escapeHtml(r.call)}</strong></td>
+            <td>${escapeHtml(r.band)}</td>
+            <td>${escapeHtml(r.mode)}</td>
+            <td>${reqHtml}</td>
+            <td>${recvHtml}${sentHtml}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ---------- 刪除單筆申請 ----------
+async function deleteRequest(recordId, reqIndex) {
+    if (!confirm('確定要刪除這筆使用者的換卡申請嗎？')) return;
+    const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
+    if (fetchError || !record) { showToast('❌ 找不到該筆資料'); return; }
+
+    let requests = record.requests || [];
+    requests.splice(reqIndex, 1); // 移除該索引的申請
+
+    const { error: updateError } = await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
+    if (updateError) { showToast('❌ 刪除失敗'); } 
+    else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); }
+}
+
+// ---------- 核准與拒絕 ----------
+async function approveRequest(recordId, reqIndex) {
+    const { data: record } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
+    if (!record) return;
+    let requests = record.requests;
+    requests[reqIndex].status = 'approved';
+    await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
+    showToast('✅ 已核准申請'); renderAdminTable();
+}
+
+async function rejectRequest(recordId, reqIndex) {
+    const { data: record } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
+    if (!record) return;
+    let requests = record.requests;
+    requests[reqIndex].status = 'rejected';
+    await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
+    showToast('已拒絕申請'); renderAdminTable();
+}
+
+// ============================================================
+// 圖片上傳到 Supabase Storage
+// ============================================================
+async function handleQslImageUpload(recordId, type, event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('⚠️ 請上傳圖片'); return; }
+    if (file.size > 2 * 1024 * 1024) { showToast('⚠️ 圖片超過 2MB'); event.target.value = ''; return; }
+
+    showToast('⏳ 圖片上傳中...');
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
+
+    // 上傳到 Storage 的 qsl-images 桶子
+    const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
+    if (uploadError) { showToast('❌ 圖片上傳失敗，請確認 Storage 權限'); event.target.value=''; return; }
+
+    // 取得公開網址
+    const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
+
+    // 把網址寫入資料庫
+    const updateData = {};
+    updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
+
+    const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
+    if (dbError) { showToast('❌ 資料庫更新失敗'); } 
+    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); }
+    event.target.value = '';
+}
+
+// ============================================================
+// ADIF 上傳與手動新增
+// ============================================================
 function handleAdifSelect(event) {
     const file = event.target.files[0];
     if (file) { selectedAdifFile = file; document.getElementById('adifFileNameDisplay').textContent = `已選擇：${file.name}`; }
@@ -71,23 +254,23 @@ function parseADIF(content) {
 }
 
 async function uploadADIF() {
-    const btnUploadADIF = document.getElementById('btnUploadADIF');
     if (!selectedAdifFile) { showToast('請先選擇 ADIF 檔案'); return; }
+    const btnUploadADIF = document.getElementById('btnUploadADIF');
     const reader = new FileReader();
     reader.onload = async function(e) {
         const parsed = parseADIF(e.target.result);
-        let newRecords = []; let errorCount = 0;
+        let newRecords = []; 
         for (const p of parsed) {
-            if (!p.call) { errorCount++; continue; }
+            if (!p.call) continue;
             newRecords.push({ date: p.date || '—', call: p.call, band: p.band || '—', mode: p.mode || '—', note: p.note || '', requests: [] });
         }
         if (newRecords.length > 0) {
-            btnUploadADIF.disabled = true; btnUploadADIF.textContent = `⏳ 匯入 ${newRecords.length} 筆中...`;
+            btnUploadADIF.disabled = true; btnUploadADIF.textContent = `⏳ 匯入中...`;
             const { error } = await _supabase.from('qsl_records').insert(newRecords);
             btnUploadADIF.disabled = false; btnUploadADIF.textContent = '上傳並匯入';
             showToast(error ? '❌ 匯入失敗' : `✅ 成功匯入 ${newRecords.length} 筆紀錄`);
-            if (error) console.error(error);
-        } else { showToast('⚠️ 未找到有效資料'); }
+            if(!error) renderAdminTable();
+        } else { showToast('⚠️ 無有效資料'); }
         document.getElementById('adifFile').value = ''; document.getElementById('adifFileNameDisplay').textContent = ''; selectedAdifFile = null;
     };
     reader.readAsText(selectedAdifFile);
@@ -106,14 +289,18 @@ async function addManualRecord() {
     const { error } = await _supabase.from('qsl_records').insert([{ date, call, band, mode, note, requests: [] }]);
     btnAddManual.disabled = false; btnAddManual.textContent = '新增紀錄';
     
-    if (error) { showToast('❌ 新增失敗'); console.error(error); } 
+    if (error) { showToast('❌ 新增失敗'); } 
     else {
         showToast(`✅ 已新增 ${call}`);
         document.getElementById('manualDate').value = ''; document.getElementById('manualCall').value = '';
         document.getElementById('manualBand').value = ''; document.getElementById('manualMode').value = ''; document.getElementById('manualNote').value = '';
+        renderAdminTable();
     }
 }
 
+// ============================================================
+// 初始化事件綁定
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     btnLogin?.addEventListener('click', login);
@@ -122,4 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
-});1
+    
+    // 燈箱關閉
+    const lb = document.getElementById('lightbox');
+    if (lb) lb.addEventListener('click', closeLightbox);
+    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+});
