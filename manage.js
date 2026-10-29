@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (終極防重複過濾版)
+   manage.js - 管理員後台完整邏輯 (自動壓縮 + 防重複版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -15,12 +15,13 @@ const manageTableBody = document.getElementById('manageTableBody');
 
 let selectedFilesArray = [];
 
+// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
     t.textContent = msg; t.classList.add('show'); 
     clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 4500); 
+    window.tt = setTimeout(() => t.classList.remove('show'), 4000); 
 }
 function escapeHtml(text) { 
     if (!text) return ''; 
@@ -293,31 +294,77 @@ async function rejectRequest(recordId, reqIndex) {
     showToast('已拒絕申請'); renderAdminTable();
 }
 
+// ============================================================
+// 🌟 圖片上傳與自動壓縮 (Canvas)
+// ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { showToast('⚠️ 請上傳圖片'); return; }
-    if (file.size > 2 * 1024 * 1024) { showToast('⚠️ 圖片超過 2MB'); event.target.value = ''; return; }
+    
+    // 放寬原始檔案限制到 10MB，因為我們會壓縮
+    if (file.size > 10 * 1024 * 1024) { showToast('⚠️ 圖片超過 10MB，請重新選擇'); event.target.value = ''; return; }
 
-    showToast('⏳ 圖片上傳中...');
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
+    showToast('⏳ 圖片壓縮與上傳中...');
 
-    const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
-    if (uploadError) { showToast('❌ 圖片上傳失敗: ' + uploadError.message); event.target.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = async function() {
+            // 建立 Canvas 進行壓縮
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // 設定最大寬度為 1200px，保持比例
+            const MAX_WIDTH = 1200;
+            if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // 轉成 JPEG，品質設為 0.8 (大約只剩 200KB 左右)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // 將 Base64 轉回 Blob (檔案格式) 以便上傳到 Storage
+            const res = await fetch(compressedBase64);
+            const blob = await res.blob();
+            
+            const fileExt = 'jpg';
+            const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
-    const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
-    const updateData = {};
-    updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
+            // 上傳到 Supabase Storage
+            const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, blob, { contentType: 'image/jpeg' });
+            
+            if (uploadError) { 
+                showToast('❌ 圖片上傳失敗: ' + uploadError.message); 
+                event.target.value=''; 
+                return; 
+            }
 
-    const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
-    if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
-    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); calculateStorageUsage(); }
-    event.target.value = '';
+            // 取得網址並寫入資料庫
+            const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
+            const updateData = {};
+            updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
+
+            const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
+            if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
+            else { showToast('✅ 圖片上傳成功 (已自動壓縮)'); renderAdminTable(); calculateStorageUsage(); }
+            event.target.value = '';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 // ============================================================
-// ADIF 上傳 (包含頻率與時間雙重誤差過濾)
+// ADIF 上傳 (包含頻率與時間誤差過濾)
 // ============================================================
 function handleAdifSelect(event) {
     const files = event.target.files;
@@ -359,7 +406,7 @@ function parseADIF(content) {
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
-        else if (fieldName === 'FREQ') { current.freq = parseFloat(value); } // 抓取精準頻率
+        else if (fieldName === 'FREQ') { current.freq = parseFloat(value); } 
         else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); }
         else if (fieldName === 'COMMENT' || fieldName === 'NOTES') { current.note = (current.note || '') + value; }
     }
@@ -374,7 +421,7 @@ async function uploadADIF() {
     btnUploadADIF.disabled = true; 
     btnUploadADIF.textContent = `⏳ 讀取中...`;
 
-    // 抓取資料庫現有資料來比對 (加入 freq 欄位)
+    // 抓取現有資料
     const { data: existingRecords, error: fetchError } = await _supabase.from('qsl_records').select('date, time, call, band, mode, note');
     if (fetchError) { showToast('❌ 無法讀取資料庫進行比對'); btnUploadADIF.disabled = false; btnUploadADIF.textContent = '全部上傳並匯入'; return; }
 
@@ -391,22 +438,18 @@ async function uploadADIF() {
                     if (!p.call) continue;
                     
                     const isDuplicate = existingRecords.some(ex => {
-                        // 1. 必須同一天、同呼號、同模式
                         if (ex.call !== p.call || ex.mode !== p.mode || ex.date !== p.date) return false;
 
-                        // 2. 判斷頻段或精準頻率
                         if (p.freq && ex.note) {
-                            // 如果新資料有 freq，且舊資料備註裡有紀錄 freq，就比對誤差 (小於 0.005 MHz)
                             const match = ex.note.match(/FREQ:([\d.]+)/);
                             if (match) {
                                 const exFreq = parseFloat(match[1]);
-                                if (Math.abs(exFreq - p.freq) > 0.005) return false; // 頻率差太多，不算重複
+                                if (Math.abs(exFreq - p.freq) > 0.005) return false;
                             }
                         } else if (ex.band !== p.band) {
-                            return false; // 如果沒精準頻率，退回到比對 BAND (例如 2M)
+                            return false;
                         }
 
-                        // 3. 判斷時間誤差 (小於 3 分鐘)
                         const exTime = timeToMinutes(ex.time);
                         const newTime = timeToMinutes(p.time);
                         return Math.abs(exTime - newTime) <= 3;
@@ -416,7 +459,6 @@ async function uploadADIF() {
 
                     let noteStr = p.note || '';
                     if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
-                    // 把精準頻率寫入備註，方便未來比對
                     if (p.freq) noteStr = `FREQ:${p.freq} ${noteStr}`.trim();
 
                     allNewRecords.push({ 
