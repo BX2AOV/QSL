@@ -2,7 +2,7 @@
    manage.js - 管理員後台完整邏輯 (安全性強化版)
    ============================================================ */
 
-const SUPABASE_URL = 'https://btcsstbtgbnejuyexwbpn.supabase.co'; // 注意：請確認你的 URL 是否正確 (原檔為 btcsstbtb... 這裡保持原樣)
+const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 

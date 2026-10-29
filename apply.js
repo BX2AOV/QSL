@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!name || !zip || !address) { showToast('請填寫完整收件資訊'); return; }
             if (!isPhoneDisabled && !rawPhone) { showToast('請填寫手機或點擊無需提供'); return; }
-            if (!password || password.length < 4) { showToast('請設定至少 4 位數的查詢密碼'); return; } 
+            if (!password || password.length < 8) { showToast('請設定至少 8 位數的查詢密碼'); return; } 
 
             let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
 
