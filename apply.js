@@ -376,4 +376,36 @@ document.addEventListener('DOMContentLoaded', function() {
             return `<tr>
                 <td>${escapeHtml(req.request_date || '—')}</td>
                 <td><strong>${escapeHtml(rec.call || '—')}</strong></td>
-                <td>${escapeHtml(rec.date
+                <td>${escapeHtml(rec.date || '—')}</td>
+                <td>${escapeHtml(rec.band || '—')} / ${escapeHtml(rec.mode || '—')}</td>
+                <td>${shipInfo}</td>
+                <td>${statusHtml}</td>
+            </tr>`;
+        }).join('');
+
+        // 綁定解鎖按鈕事件
+        document.querySelectorAll('.btn-unlock').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.dataset.id;
+                const pwd = prompt('請輸入您當初設定的查詢密碼：');
+                if (!pwd) return;
+                
+                unlockPasswords[id] = pwd;
+                await loadMyRequests();
+                renderMyRequests(); // 重新渲染，如果密碼正確就會顯示地址
+                
+                // 檢查解鎖是否成功
+                const checkReq = myRequests.find(r => r.record_id == id);
+                if (checkReq && checkReq.is_locked) {
+                    showToast('❌ 密碼錯誤，無法解鎖');
+                    delete unlockPasswords[id]; // 移除錯誤的密碼
+                } else {
+                    showToast('✅ 解鎖成功');
+                }
+            });
+        });
+    }
+
+    btnQuery.addEventListener('click', doQuery);
+    queryInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); doQuery(); } });
+});
