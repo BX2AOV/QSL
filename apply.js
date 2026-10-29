@@ -1,19 +1,31 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (最終獨立解鎖版)
+   apply.js - 申請頁面專用邏輯 (重構穩定版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ============================================================
+// 全域變數 (確保任何地方都讀得到)
+// ============================================================
 let currentLang = localStorage.getItem('site_lang') || 'zh';
-// 儲存已經解鎖的紀錄 ID 與真實地址資訊
-let unlockedRecords = {}; 
+let queryCallsign = '';
+let matchedRecords = [];
+let myRequests = [];
+let selectedRecordIds = new Set();
+let isPhoneDisabled = false;
+let currentCountryCode = '+886';
+let unlockedRecords = {}; // 儲存已解鎖的紀錄 { record_id: { ship_addr, ship_zip, ship_phone } }
 
+// ============================================================
+// 語言切換
+// ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
     localStorage.setItem('site_lang', currentLang);
     applyLanguage();
+    renderMyRequests(); // 切換語言時重新渲染表格
 };
 
 function applyLanguage() {
@@ -37,12 +49,11 @@ function applyLanguage() {
     if (toggle) toggle.setAttribute('data-active', currentLang);
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
-
-    if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
-        renderMyRequests();
-    }
 }
 
+// ============================================================
+// 共用工具
+// ============================================================
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -87,27 +98,18 @@ function computeQslStatus(r) {
     return { cls: 'badge-none', text: t[lang].none };
 }
 
-let currentCountryCode = '+886';
 window.selectCountry = function(code) {
     currentCountryCode = code;
     document.getElementById('selectedCountryCode').textContent = code;
     document.getElementById('countryCodeWrapper').classList.remove('open');
 };
 
-document.addEventListener('click', function(e) {
-    const wrapper = document.getElementById('countryCodeWrapper');
-    if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
-});
-
+// ============================================================
+// 初始化
+// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     const btnQuery = document.getElementById('btnQuery');
     if (!btnQuery) return;
-
-    let queryCallsign = '';
-    let matchedRecords = [];
-    let myRequests = [];
-    let selectedRecordIds = new Set();
-    let isPhoneDisabled = false;
 
     const queryInput = document.getElementById('queryCallsignInput');
     const queryHint = document.getElementById('queryResultHint');
@@ -124,6 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     applyLanguage();
 
+    // 語言與國碼選單
     document.getElementById('langToggle')?.addEventListener('click', (e) => {
         const opt = e.target.closest('.lang-option');
         if (opt) changeLang(opt.dataset.lang);
@@ -136,18 +139,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    document.addEventListener('click', function(e) {
+        if (countryCodeWrapper && !countryCodeWrapper.contains(e.target)) countryCodeWrapper.classList.remove('open');
+    });
+
+    // 無電話切換
     if (btnNoPhone) {
         btnNoPhone.addEventListener('click', function() {
             isPhoneDisabled = !isPhoneDisabled;
             if (isPhoneDisabled) {
                 shipPhone.style.display = 'none';
-                document.getElementById('countryCodeWrapper').style.display = 'none';
+                countryCodeWrapper.style.display = 'none';
                 btnNoPhone.style.background = '#0b2a4a';
                 btnNoPhone.style.color = '#fff';
                 btnNoPhone.setAttribute('data-active', 'true');
             } else {
                 shipPhone.style.display = 'block';
-                document.getElementById('countryCodeWrapper').style.display = 'block';
+                countryCodeWrapper.style.display = 'block';
                 btnNoPhone.style.background = '';
                 btnNoPhone.style.color = '';
                 btnNoPhone.removeAttribute('data-active');
@@ -156,12 +164,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 記住上次查詢
     const savedCall = localStorage.getItem('user_callsign');
     if (savedCall) {
         queryInput.value = savedCall;
         setTimeout(() => doQuery(), 100);
     }
 
+    // 🌟 查詢邏輯
     async function doQuery() {
         const call = queryInput.value.trim().toUpperCase();
         if (!call) { showToast('請輸入呼號'); return; }
@@ -177,31 +187,39 @@ document.addEventListener('DOMContentLoaded', function() {
             queryResultCard.style.display = 'none';
             shipInfoCard.style.display = 'none';
             queryHint.innerHTML = `<span style="color:#b03030;">❌ 找不到此呼號的通聯記錄</span>`;
+            myRequests = [];
+            renderMyRequests();
             return;
         }
 
         queryHint.innerHTML = `<span style="color:#0e6b3e;">✅ 找到 ${matchedRecords.length} 筆通聯紀錄</span>`;
         selectedRecordIds.clear();
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        unlockedRecords = {}; // 切換呼號時重置解鎖
 
-        // 查詢時，一律先拉取「未解鎖」的資料（因為我們傳入空密碼，資料庫會回傳上鎖狀態）
         await loadMyRequests();
+        
+        // 印出資料，確認 RPC 有沒有正常運作
+        console.log("📦 從資料庫抓到的申請紀錄:", myRequests); 
+
         renderQueryResult();
+        renderMyRequests();
+        
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
     }
 
+    // 🌟 抓取我的申請紀錄 (強制不傳密碼，取得全部上鎖資料)
     async function loadMyRequests() {
         if (!queryCallsign) { myRequests = []; return; }
         
-        // 這裡傳入空密碼，讓資料庫強制回傳「上鎖」狀態。真實解鎖由點擊按鈕時呼叫 RPC 處理。
         const { data, error } = await _supabase.rpc('my_qsl_requests', { 
             p_user_call: queryCallsign,
             p_password: '' 
         });
         
         if (error) {
-            console.error("載入失敗:", error);
+            console.error("❌ 載入申請紀錄失敗:", error);
             myRequests = [];
         } else {
             myRequests = data || [];
@@ -212,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return myRequests.some(req => Number(req.record_id) === Number(recordId));
     }
 
+    // 🌟 渲染上方通聯紀錄表格
     function renderQueryResult() {
         queryResultBody.innerHTML = matchedRecords.map(r => {
             const st = computeQslStatus(r);
@@ -272,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 🌟 提交申請
     if (btnSubmit) {
         btnSubmit.addEventListener('click', async function() {
             if (selectedRecordIds.size === 0) return;
@@ -305,8 +325,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     p_password: password 
                 });
 
-                if (error) { hasError = true; console.error(error); } 
-                else { 
+                if (error) { 
+                    hasError = true; 
+                    console.error("提交失敗:", error); 
+                } else { 
                     count++; 
                 }
             }
@@ -315,21 +337,28 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.textContent = '送出 QSL 換卡申請';
             applyLanguage();
             
-            if (count === 0) showToast('❌ 全部失敗');
+            if (count === 0) showToast('❌ 送出失敗，請看 Console 錯誤');
             else showToast(`✅ 已送出 ${count} 筆申請`);
 
             selectedRecordIds.clear();
             if (selectAllCheckbox) selectAllCheckbox.checked = false;
 
+            // 重新抓取資料並渲染
             await loadMyRequests();
             renderQueryResult();
             renderMyRequests();
             
-            document.getElementById('shipName').value = ''; shipPhone.value = ''; document.getElementById('shipZip').value = ''; document.getElementById('shipAddress').value = ''; document.getElementById('shipNote').value = ''; document.getElementById('shipPassword').value = '';
+            document.getElementById('shipName').value = ''; 
+            shipPhone.value = ''; 
+            document.getElementById('shipZip').value = ''; 
+            document.getElementById('shipAddress').value = ''; 
+            document.getElementById('shipNote').value = ''; 
+            document.getElementById('shipPassword').value = '';
             shipInfoCard.style.display = 'none';
         });
     }
 
+    // 🌟 渲染下方「我的申請紀錄」表格
     function renderMyRequests() {
         const tbody = document.getElementById('myRequestsBody');
         if (!tbody) return;
@@ -353,13 +382,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const rec = recordMap.get(Number(req.record_id)) || {};
             const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
             
-            // 🌟 判斷這筆紀錄是否已經在前端被解鎖過
+            // 判斷是否已解鎖
             const isUnlocked = unlockedRecords[req.record_id];
 
             let statusHtml = '';
             
             if (isUnlocked) {
-                // 已解鎖，顯示真實資料
+                // 已解鎖顯示真實資料
                 const data = unlockedRecords[req.record_id];
                 statusHtml = `
                     <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span></div>
@@ -369,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             } else {
-                // 未解鎖
+                // 未解鎖顯示上鎖按鈕
                 statusHtml = `
                     <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span style="color:#b03030; font-size:0.8rem;">🔒 已上鎖</span></div>
                     <button class="btn-unlock" data-id="${escAttr(req.record_id)}" style="background:#0b2a4a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">🔓 解鎖詳情</button>
@@ -386,14 +415,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>`;
         }).join('');
 
-        // 綁定解鎖按鈕事件 (使用剛剛新建的單筆驗證 RPC)
+        // 綁定解鎖按鈕事件
         document.querySelectorAll('.btn-unlock').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const id = this.dataset.id;
                 const pwd = prompt('請輸入您當初設定的查詢密碼：');
                 if (!pwd) return;
                 
-                // 呼叫單筆驗證 RPC
+                // 呼叫單筆驗證
                 const { data, error } = await _supabase.rpc('verify_qsl_password', { 
                     p_record_id: Number(id),
                     p_user_call: queryCallsign,
@@ -401,17 +430,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (error) {
-                    showToast('❌ 驗證失敗，請稍後再試');
+                    showToast('❌ 驗證失敗，請看 Console');
                     console.error(error);
                 } else if (data && data.success) {
                     showToast('✅ 解鎖成功');
-                    // 把真實資料存進 unlockedRecords 中
                     unlockedRecords[id] = {
                         ship_addr: data.ship_addr,
                         ship_zip: data.ship_zip,
                         ship_phone: data.ship_phone
                     };
-                    renderMyRequests(); // 重新渲染畫面
+                    renderMyRequests(); // 重新渲染
                 } else {
                     showToast('❌ 密碼錯誤');
                 }
