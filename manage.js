@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含分頁、篩選與自動狀態)
+   manage.js - 管理員後台完整邏輯 (優化排版與分頁)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -18,7 +18,6 @@ let selectedFilesArray = [];
 let allRecords = []; 
 let filteredRecords = []; 
 
-// 🌟 分頁變數 (每頁 20 筆)
 let currentPage = 1;
 const itemsPerPage = 20;
 
@@ -75,7 +74,7 @@ function getDaysSince(dateString) {
 }
 
 // ============================================================
-// 登入與登出 (使用 Supabase Auth)
+// 登入與登出
 // ============================================================
 async function login() {
     const email = document.getElementById('adminUser').value.trim();
@@ -170,7 +169,7 @@ async function calculateStorageUsage() {
 }
 
 // ============================================================
-// 渲染管理表格與操作 (加入分頁)
+// 渲染管理表格與操作
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
@@ -192,7 +191,6 @@ async function renderAdminTable() {
     const filterStatus = document.getElementById('filterStatus')?.value || 'all';
     const filterMode = document.getElementById('filterMode')?.value || 'all';
 
-    // 執行過濾
     filteredRecords = allRecords.filter(r => {
         const matchKeyword = !keyword || r.call.includes(keyword) || (r.date && r.date.includes(keyword)) || (r.band && r.band.toUpperCase().includes(keyword));
         const matchStatus = (filterStatus === 'all') || (r.status === filterStatus || (!r.status && filterStatus === 'none'));
@@ -207,7 +205,6 @@ async function renderAdminTable() {
         return;
     }
 
-    // 🌟 計算分頁範圍
     const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
     if (currentPage > totalPages) currentPage = totalPages;
     if (currentPage < 1) currentPage = 1;
@@ -246,35 +243,30 @@ async function renderAdminTable() {
             }).join('');
         }
 
-        const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.receivedImg}')">` : '';
+        const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
         const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
 
-        const sentImgHtml = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.sentImg}')">` : '';
+        const sentImgHtml = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
         const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
         
         let sentReminderHtml = '';
         if (r.sentImg && r.sentDate) {
             const days = getDaysSince(r.sentDate);
             if (days >= 30) {
-                sentReminderHtml = `
-                <div style="font-size:0.75rem; color:#b45f06; background:#fff0d9; padding:4px 8px; border-radius:6px; margin-top:6px; display:inline-block; font-weight:bold; border:1px solid #fce4c2;">
-                    ⏰ 已寄出 ${days} 天，請聯繫確認對方是否收到
-                </div>`;
+                sentReminderHtml = `<div style="font-size:0.7rem; color:#b45f06; background:#fff0d9; padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">⏰ 已寄出 ${days} 天</div>`;
             }
         }
-
         if (r.status === 'completed' && r.completedDate) {
             const daysSinceComplete = getDaysSince(r.completedDate);
             const daysLeft = 30 - daysSinceComplete;
             if (daysLeft > 0) {
-                sentReminderHtml += `<div style="font-size:0.7rem; color:#0e6b3e; margin-top:4px;">✅ 已完成，${daysLeft} 天後自動清理圖片</div>`;
-            } else {
-                sentReminderHtml += `<div style="font-size:0.7rem; color:#b03030; margin-top:4px;">🧹 圖片將於下次訪客拜訪時清除</div>`;
+                sentReminderHtml += `<div style="font-size:0.7rem; color:#0e6b3e; margin-top:4px;">✅ ${daysLeft} 天後清理</div>`;
             }
         }
 
+        // 🌟 將上傳按鈕改成緊湊的左右並排
         const recvHtml = `
-            <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div class="upload-btns" style="margin-bottom:4px;">
                 <label for="recv-${r.id}">📥 收到</label>
                 <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
                 ${recvImgHtml}
@@ -282,7 +274,7 @@ async function renderAdminTable() {
             </div>`;
 
         const sentHtml = `
-            <div class="upload-btns" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div class="upload-btns">
                 <label for="sent-${r.id}">📤 發出</label>
                 <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
                 ${sentImgHtml}
@@ -292,7 +284,7 @@ async function renderAdminTable() {
 
         const currentStatus = r.status || 'none';
         const statusSelect = `
-            <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid #cbdae8; font-size:0.85rem; background:#fff; cursor:pointer; outline:none;">
+            <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 8px; border-radius:6px; border:1px solid #cbdae8; font-size:0.8rem; background:#fff; cursor:pointer; outline:none;">
                 <option value="none" ${currentStatus === 'none' ? 'selected' : ''}>未申請</option>
                 <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>待處理</option>
                 <option value="received_paper" ${currentStatus === 'received_paper' ? 'selected' : ''}>已收到紙卡</option>
@@ -303,9 +295,10 @@ async function renderAdminTable() {
             </select>
         `;
 
+        // 🌟 移除了「備註」欄位，讓表格可以更窄
         return `<tr>
-            <td>${escapeHtml(r.date)}</td>
-            <td><strong>${escapeHtml(r.time || '—')}</strong></td>
+            <td style="white-space:nowrap;">${escapeHtml(r.date)}</td>
+            <td style="white-space:nowrap;"><strong>${escapeHtml(r.time || '—')}</strong></td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(display.band)}</strong></td>
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
@@ -313,17 +306,16 @@ async function renderAdminTable() {
             <td>${recvHtml}${sentHtml}</td>
             <td>${statusSelect}</td>
             <td>
-                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; white-space:nowrap;">🗑️ 刪除</button>
+                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75rem; white-space:nowrap;">🗑️</button>
             </td>
         </tr>`;
     }).join('');
 
-    // 🌟 渲染分頁按鈕
     renderPagination(totalPages);
 }
 
 // ============================================================
-// 🌟 分頁按鈕渲染
+// 分頁按鈕渲染
 // ============================================================
 function renderPagination(totalPages) {
     if (!paginationContainer) return;
