@@ -12,7 +12,9 @@ const roleBadge = document.getElementById('roleBadge');
 const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
-let selectedAdifFile = null;
+
+// 改用陣列來儲存多次選取的檔案
+let selectedAdifFiles = [];
 
 // 共用工具
 function showToast(msg) { 
@@ -330,10 +332,21 @@ async function handleQslImageUpload(recordId, type, event) {
 // ============================================================
 // ADIF 上傳與手動新增
 // ============================================================
+
+// 修改：允許手機分次選取，累積在陣列中
 function handleAdifSelect(event) {
-    const file = event.target.files[0];
-    if (file) { selectedAdifFile = file; document.getElementById('adifFileNameDisplay').textContent = `已選擇：${file.name}`; }
-    else { selectedAdifFile = null; document.getElementById('adifFileNameDisplay').textContent = ''; }
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+            // 避免重複加入同一個檔案
+            if (!selectedAdifFiles.some(f => f.name === files[i].name)) {
+                selectedAdifFiles.push(files[i]);
+            }
+        }
+        document.getElementById('adifFileNameDisplay').textContent = `已選擇 ${selectedAdifFiles.length} 個檔案`;
+    }
+    // 清空 input，這樣下次點擊才可以選同一個檔案
+    event.target.value = '';
 }
 
 function parseADIF(content) {
@@ -368,47 +381,79 @@ function parseADIF(content) {
     return records;
 }
 
+// 修改：迴圈讀取所有選取的檔案
 async function uploadADIF() {
-    if (!selectedAdifFile) { showToast('請先選擇 ADIF 檔案'); return; }
+    if (selectedAdifFiles.length === 0) { showToast('請先選擇 ADIF 檔案'); return; }
     const btnUploadADIF = document.getElementById('btnUploadADIF');
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const parsed = parseADIF(e.target.result);
-        let newRecords = []; 
-        for (const p of parsed) {
-            if (!p.call) continue;
-            
-            let noteStr = p.note || '';
-            if (p.satName) {
-                noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
-            }
+    
+    btnUploadADIF.disabled = true; 
+    btnUploadADIF.textContent = `⏳ 讀取檔案中...`;
 
-            newRecords.push({ 
-                date: p.date || '—', 
-                time: p.time || '—', // 寫入時間
-                call: p.call, 
-                band: p.band || '—', 
-                mode: p.mode || '—', 
-                note: noteStr, 
-                requests: [] 
-            });
+    let allNewRecords = [];
+    let processedFilesCount = 0;
+
+    // 使用 Promise 確保所有檔案都讀取完畢
+    const readFilesPromises = selectedAdifFiles.map(file => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const parsed = parseADIF(e.target.result);
+                for (const p of parsed) {
+                    if (!p.call) continue;
+                    
+                    let noteStr = p.note || '';
+                    if (p.satName) {
+                        noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
+                    }
+
+                    allNewRecords.push({ 
+                        date: p.date || '—', 
+                        time: p.time || '—',
+                        call: p.call, 
+                        band: p.band || '—', 
+                        mode: p.mode || '—', 
+                        note: noteStr, 
+                        requests: [] 
+                    });
+                }
+                processedFilesCount++;
+                btnUploadADIF.textContent = `⏳ 讀取中 (${processedFilesCount}/${selectedAdifFiles.length})...`;
+                resolve();
+            };
+            reader.readAsText(file);
+        });
+    });
+
+    await Promise.all(readFilesPromises);
+
+    if (allNewRecords.length > 0) {
+        btnUploadADIF.textContent = `⏳ 寫入資料庫中...`;
+        // 一次把所有的紀錄寫入資料庫
+        const { error } = await _supabase.from('qsl_records').insert(allNewRecords);
+        
+        if (error) {
+            showToast('❌ 匯入失敗');
+        } else {
+            showToast(`✅ 成功從 ${selectedAdifFiles.length} 個檔案匯入 ${allNewRecords.length} 筆紀錄`);
+            renderAdminTable(); 
+            calculateStorageUsage();
         }
-        if (newRecords.length > 0) {
-            btnUploadADIF.disabled = true; btnUploadADIF.textContent = `⏳ 匯入中...`;
-            const { error } = await _supabase.from('qsl_records').insert(newRecords);
-            btnUploadADIF.disabled = false; btnUploadADIF.textContent = '上傳並匯入';
-            showToast(error ? '❌ 匯入失敗' : `✅ 成功匯入 ${newRecords.length} 筆紀錄`);
-            if(!error) { renderAdminTable(); calculateStorageUsage(); }
-        } else { showToast('⚠️ 無有效資料'); }
-        document.getElementById('adifFile').value = ''; document.getElementById('adifFileNameDisplay').textContent = ''; selectedAdifFile = null;
-    };
-    reader.readAsText(selectedAdifFile);
+    } else { 
+        showToast('⚠️ 無有效資料'); 
+    }
+
+    // 重置狀態
+    btnUploadADIF.disabled = false; 
+    btnUploadADIF.textContent = '上傳並匯入';
+    document.getElementById('adifFile').value = ''; 
+    document.getElementById('adifFileNameDisplay').textContent = ''; 
+    selectedAdifFiles = [];
 }
 
 async function addManualRecord() {
     const btnAddManual = document.getElementById('btnAddManual');
     const date = document.getElementById('manualDate').value;
-    const time = document.getElementById('manualTime').value; // 抓取時間
+    const time = document.getElementById('manualTime').value;
     const call = document.getElementById('manualCall').value.trim().toUpperCase();
     const band = document.getElementById('manualBand').value.trim();
     const mode = document.getElementById('manualMode').value.trim().toUpperCase();
@@ -418,13 +463,7 @@ async function addManualRecord() {
 
     btnAddManual.disabled = true; btnAddManual.textContent = '新增中...';
     const { error } = await _supabase.from('qsl_records').insert([{ 
-        date, 
-        time, // 寫入時間
-        call, 
-        band, 
-        mode, 
-        note, 
-        requests: [] 
+        date, time, call, band, mode, note, requests: [] 
     }]);
     btnAddManual.disabled = false; btnAddManual.textContent = '新增紀錄';
     
@@ -432,7 +471,7 @@ async function addManualRecord() {
     else {
         showToast(`✅ 已新增 ${call}`);
         document.getElementById('manualDate').value = ''; 
-        document.getElementById('manualTime').value = ''; // 清空時間
+        document.getElementById('manualTime').value = '';
         document.getElementById('manualCall').value = '';
         document.getElementById('manualBand').value = ''; 
         document.getElementById('manualMode').value = ''; 
