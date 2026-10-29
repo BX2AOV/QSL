@@ -8,7 +8,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- 頂部橫列 -->
         <header class="header-bar">
             <div class="logo-area">
                 <span class="logo-icon">📡</span>
@@ -25,7 +24,6 @@
             </div>
         </header>
 
-        <!-- 步驟 1：輸入呼號查詢 -->
         <section class="card">
             <h2>🔍 查詢我的通聯紀錄</h2>
             <div class="card-sub">輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。</div>
@@ -36,7 +34,6 @@
             </div>
         </section>
 
-        <!-- 步驟 2：查詢結果 -->
         <section class="card" id="queryResultCard" style="display:none;">
             <h2>📋 您的通聯紀錄</h2>
             <div class="card-sub">以下是資料庫中屬於您呼號的通聯紀錄。勾選您要申請 QSL 換卡的通聯（可多選）。</div>
@@ -53,7 +50,6 @@
             </div>
         </section>
 
-        <!-- 步驟 3：填寫收件資訊 -->
         <section class="card" id="shipInfoCard" style="display:none;">
             <h2>📮 收件資訊</h2>
             <div class="card-sub">請填寫您的收件資訊，以便寄送 QSL 卡。</div>
@@ -85,7 +81,6 @@
             </div>
         </section>
 
-        <!-- 已送出的申請紀錄 -->
         <section class="card">
             <h2>📬 我的申請紀錄</h2>
             <div class="card-sub">以下為您已送出的 QSL 換卡申請。</div>
@@ -105,7 +100,6 @@
         </section>
     </div>
 
-    <!-- 燈箱 -->
     <div class="lightbox" id="lightbox">
         <span class="lightbox-close" id="lightboxClose">×</span>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
@@ -113,9 +107,7 @@
 
     <div id="toast" class="toast">操作成功</div>
 
-    <!-- 共用邏輯（資料、工具函式） -->
-    <script src="script.js"></script>
-    <!-- 本頁專用邏輯 -->
+    <!-- 只載入 apply.js，不依賴 script.js -->
     <script src="apply.js"></script>
 </body>
 </html>
