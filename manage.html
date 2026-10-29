@@ -63,13 +63,16 @@
                 <div>
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (ADIF)</h3>
                     <div class="upload-zone" style="padding:20px;">
-                        <!-- multiple 屬性讓你可以一次選多個檔案 -->
-                        <input type="file" id="adifFile" accept=".adi,.adif" multiple style="display:none;">
-                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔 (可多選)</label>
-                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式，手機可分次點擊累積</div>
-                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
+                        <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
+                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">點擊選擇 ADIF 檔</label>
+                        <div class="file-hint" style="margin-top:6px;">可以重複點擊，分次加入多個檔案</div>
+                        <!-- 這裡用來顯示已選了幾個檔案 -->
+                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.9rem; color: #0066cc; font-weight: bold; margin-top: 10px;"></div>
                     </div>
-                    <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
+                    <div style="display:flex; gap:10px; margin-top:12px;">
+                        <button class="btn btn-primary" id="btnUploadADIF" style="flex:1;">全部上傳並匯入</button>
+                        <button class="btn btn-outline" id="btnClearFiles" style="display:none;">清除</button>
+                    </div>
                 </div>
                 
                 <div>
