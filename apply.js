@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (精準切換語言版)
+   apply.js - 申請頁面專用邏輯 (支援無需手機與國碼)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -28,13 +28,22 @@ function applyLanguage() {
         }
     });
 
+    // 翻譯「無需提供」按鈕
+    const btnNoPhone = document.getElementById('btnNoPhone');
+    if (btnNoPhone) {
+        const noPhoneText = { zh: '無需提供', cn: '无需提供', en: 'No Phone', ja: '電話不要' };
+        // 只有在按鈕沒被啟動時才翻譯，避免覆蓋掉「已取消提供」的字眼
+        if (btnNoPhone.getAttribute('data-active') !== 'true') {
+            btnNoPhone.textContent = noPhoneText[currentLang];
+        }
+    }
+
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
 
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 如果在申請頁，更新申請紀錄
     if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
         renderMyRequests();
     }
@@ -89,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let queryCallsign = '';
     let matchedRecords = [];
     let selectedRecordIds = new Set();
+    let isPhoneDisabled = false; // 紀錄是否隱藏手機欄位
 
     const queryInput = document.getElementById('queryCallsignInput');
     const queryHint = document.getElementById('queryResultHint');
@@ -98,8 +108,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const selectedCountHint = document.getElementById('selectedCountHint');
     const btnSubmit = document.getElementById('btnSubmitApplication');
+    
+    const shipPhone = document.getElementById('shipPhone');
+    const shipCountryCode = document.getElementById('shipCountryCode');
+    const btnNoPhone = document.getElementById('btnNoPhone');
+    const phoneReq = document.getElementById('phoneReq');
 
     applyLanguage();
+
+    // 點擊「無需提供」的邏輯
+    if (btnNoPhone) {
+        btnNoPhone.addEventListener('click', function() {
+            isPhoneDisabled = !isPhoneDisabled;
+            if (isPhoneDisabled) {
+                shipPhone.style.display = 'none';
+                shipCountryCode.style.display = 'none';
+                phoneReq.style.display = 'none';
+                
+                btnNoPhone.style.background = '#0b2a4a';
+                btnNoPhone.style.color = '#fff';
+                btnNoPhone.style.borderColor = '#0b2a4a';
+                btnNoPhone.setAttribute('data-active', 'true');
+                
+                const noPhoneText = { zh: '已取消提供', cn: '已取消提供', en: 'Cancelled', ja: 'キャンセル済' };
+                btnNoPhone.textContent = noPhoneText[currentLang];
+            } else {
+                shipPhone.style.display = 'block';
+                shipCountryCode.style.display = 'block';
+                phoneReq.style.display = 'inline';
+                
+                btnNoPhone.style.background = '';
+                btnNoPhone.style.color = '';
+                btnNoPhone.style.borderColor = '#cbdae8';
+                btnNoPhone.removeAttribute('data-active');
+                
+                const noPhoneText = { zh: '無需提供', cn: '无需提供', en: 'No Phone', ja: '電話不要' };
+                btnNoPhone.textContent = noPhoneText[currentLang];
+            }
+        });
+    }
 
     const savedCall = localStorage.getItem('user_callsign');
     if (savedCall) {
@@ -217,16 +264,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 return; 
             }
             const name = document.getElementById('shipName').value.trim();
-            const phone = document.getElementById('shipPhone').value.trim();
+            const rawPhone = shipPhone.value.trim();
+            const countryCode = shipCountryCode.value;
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
 
+            let finalPhone = isPhoneDisabled ? '未提供' : `${countryCode} ${rawPhone}`;
+
             const errorMsg = { zh: '請填寫完整收件資訊', cn: '请填写完整收件信息', en: 'Please fill in all required fields.', ja: '必須項目を入力してください。' };
-            if (!name || !phone || !zip || !address) { showToast(errorMsg[currentLang]); return; }
+            if (!name || !zip || !address) { showToast(errorMsg[currentLang]); return; }
             
-            const phoneErr = { zh: '手機格式錯誤', cn: '手机格式错误', en: 'Invalid phone number.', ja: '電話番号の形式が正しくありません。' };
-            if (!/^09\d{8}$/.test(phone)) { showToast(phoneErr[currentLang]); return; }
+            if (!isPhoneDisabled && !rawPhone) {
+                const phoneErr = { zh: '請填寫手機或點擊無需提供', cn: '请填写手机或点击无需提供', en: 'Please enter phone or click No Phone.', ja: '電話番号を入力するか、「電話不要」をクリックしてください。' };
+                showToast(phoneErr[currentLang]); return; 
+            }
 
             btnSubmit.disabled = true; 
             const processingText = { zh: '處理中...', cn: '处理中...', en: 'Processing...', ja: '処理中...' };
@@ -237,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const record = matchedRecords.find(r => r.id === id);
                 if (!record || record.requests.some(req => req.userCall === queryCallsign)) continue;
 
-                const newReq = { userCall: queryCallsign, requestDate: new Date().toISOString().slice(0, 10), status: 'pending', shipName: name, shipPhone: phone, shipZip: zip, shipAddress: address, shipNote: note };
+                const newReq = { userCall: queryCallsign, requestDate: new Date().toISOString().slice(0, 10), status: 'pending', shipName: name, shipPhone: finalPhone, shipZip: zip, shipAddress: address, shipNote: note };
                 const updatedRequests = [...record.requests, newReq];
 
                 const { error } = await _supabase.from('qsl_records').update({ requests: updatedRequests }).eq('id', id);
@@ -257,7 +309,8 @@ document.addEventListener('DOMContentLoaded', function() {
             renderQueryResult();
             renderMyRequests();
             
-            document.getElementById('shipName').value = ''; document.getElementById('shipPhone').value = '';
+            document.getElementById('shipName').value = ''; 
+            shipPhone.value = '';
             document.getElementById('shipZip').value = ''; document.getElementById('shipAddress').value = ''; document.getElementById('shipNote').value = '';
             shipInfoCard.style.display = 'none';
         });
