@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的申請 - BX2AOV QSL confirm</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部橫列 -->
+        <header class="header-bar">
+            <div class="logo-area">
+                <span class="logo-icon">📡</span>
+                <span>BX2AOV QSL confirm</span>
+                <span class="callsign-badge">BX2AOV</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" class="nav-tab">總覽</a></li>
+                <li><a href="apply.html" class="nav-tab active">我的申請</a></li>
+                <li><a href="index.html#admin-panel" class="nav-tab">管理員</a></li>
+            </ul>
+            <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                <span class="role-badge">訪客</span>
+            </div>
+        </header>
+
+        <!-- 我的申請頁面 -->
+        <section class="card">
+            <h2>📬 我的 QSL 申請紀錄</h2>
+            <div class="card-sub">以下為您提出的 QSL 換卡申請，管理員處理後狀態會更新。</div>
+
+            <!-- 呼號提示 -->
+            <div class="user-callsign-area" style="margin-bottom:20px;">
+                <span id="applyCallsignDisplay" style="font-size:0.9rem; color:#5a6e85;">尚未設定呼號</span>
+                <a href="index.html" class="btn btn-outline btn-sm">回總覽設定呼號</a>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>申請日期</th><th>通聯呼號</th><th>通聯日期</th><th>頻段 / 模式</th><th>申請狀態</th></tr>
+                    </thead>
+                    <tbody id="myRequestsBody">
+                        <tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- 燈箱 -->
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" id="lightboxClose">×</span>
+        <img id="lightboxImg" src="" alt="QSL 卡大圖">
+    </div>
+
+    <div id="toast" class="toast">操作成功</div>
+
+    <script src="script.js"></script>
+    <script>
+        // apply.html 專用初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 顯示目前呼號
+            const display = document.getElementById('applyCallsignDisplay');
+            if (display) {
+                if (userCallsign) {
+                    display.innerHTML = `<span class="callsign-tag">目前呼號：${escapeHtml(userCallsign)}</span>`;
+                } else {
+                    display.innerHTML = '<span style="color:#b8cee4;">尚未設定呼號，請先回總覽設定</span>';
+                }
+            }
+            // 渲染申請列表
+            renderMyRequests();
+        });
+    </script>
+</body>
+</html>
