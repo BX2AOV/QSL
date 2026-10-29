@@ -1,13 +1,10 @@
 /* ============================================================
-   BX2AOV QSL confirm - 主邏輯（雙頁面版）
+   BX2AOV QSL confirm - 互動範例
+   資料只存在記憶體，重新整理即重置
    ============================================================ */
 
-// ---------- 常數 ----------
-const STORAGE_KEY = 'qsl_manager_data_v4';
-const USER_CALLSIGN_KEY = 'qsl_user_callsign';
-const ADMIN_PASSWORD = 'admin123';
-
-const defaultRecords = [
+// ---------- 示範資料（記憶體） ----------
+const demoRecords = [
     { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', note: '等待回卡', receivedImg: null, sentImg: null, requests: [] },
     { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
     { id: 3, date: '2025-01-15', call: 'VK3DEF', band: '40m', mode: 'CW', note: '已寄出', receivedImg: null, sentImg: null, requests: [] },
@@ -15,32 +12,15 @@ const defaultRecords = [
     { id: 5, date: '2025-01-20', call: 'BV2JKL', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] },
 ];
 
-// ---------- 狀態 ----------
-let qslRecords = loadData();
-let userCallsign = localStorage.getItem(USER_CALLSIGN_KEY) || '';
+// ---------- 狀態（純記憶體，不寫入 localStorage） ----------
+let qslRecords = JSON.parse(JSON.stringify(demoRecords));
+let userCallsign = '';          // 從 index.html 設定
 let isAdmin = false;
 let selectedAdifFile = null;
 let currentTab = 'dashboard';
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
-
-// ============================================================
-// 資料存取
-// ============================================================
-function loadData() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-        try { return JSON.parse(stored); }
-        catch (e) { return JSON.parse(JSON.stringify(defaultRecords)); }
-    }
-    return JSON.parse(JSON.stringify(defaultRecords));
-}
-
-function saveData(records) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
-    catch (e) { showToast('⚠️ 儲存空間不足，圖片可能過大'); }
-}
 
 // ============================================================
 // 工具
@@ -78,29 +58,22 @@ function closeLightbox() {
 }
 
 // ============================================================
-// 分頁切換（只處理 index.html 內的管理員分頁）
+// 分頁切換（index.html 內）
 // ============================================================
 function switchTab(tabName) {
     currentTab = tabName;
-
-    // 更新導航 active
     document.querySelectorAll('.nav-tab').forEach(a => {
         a.classList.toggle('active', a.dataset.tab === tabName);
     });
-
-    // 顯示對應分頁
     document.querySelectorAll('.tab-page').forEach(page => {
         page.classList.remove('active');
     });
     const target = $('page-' + tabName);
     if (target) target.classList.add('active');
 
-    // 切到管理員分頁時，渲染管理員表格
     if (tabName === 'admin-panel') {
         adminSectionVisible(true);
     }
-
-    // 重新渲染當前頁資料
     renderCurrentTab();
 }
 
@@ -122,7 +95,6 @@ function setUserCallsign() {
     const v = input.value.trim().toUpperCase();
     if (!v) { showToast('請輸入呼號'); return; }
     userCallsign = v;
-    localStorage.setItem(USER_CALLSIGN_KEY, userCallsign);
     updateUserCallsignDisplay();
     renderCurrentTab();
     showToast(`✅ 已設定呼號：${userCallsign}`);
@@ -145,7 +117,7 @@ function updateUserCallsignDisplay() {
 // ============================================================
 function loginAdmin() {
     const pwd = $('adminPassword').value.trim();
-    if (pwd === ADMIN_PASSWORD) {
+    if (pwd === 'admin123') {
         isAdmin = true;
         $('adminLoginBox').style.display = 'none';
         $('adminContent').style.display = 'block';
@@ -248,326 +220,4 @@ function renderMyRequests() {
     });
 
     if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = list.map(req => {
-        let cls = 'badge-pending', txt = '待處理';
-        if (req.status === 'approved') { cls = 'badge-approved'; txt = '已核准'; }
-        else if (req.status === 'rejected') { cls = 'badge-rejected'; txt = '已拒絕'; }
-        return `<tr>
-            <td>${escapeHtml(req.requestDate)}</td>
-            <td><strong>${escapeHtml(req.record.call)}</strong></td>
-            <td>${escapeHtml(req.record.date)}</td>
-            <td>${escapeHtml(req.record.band)} / ${escapeHtml(req.record.mode)}</td>
-            <td><span class="${cls}">${txt}</span></td>
-        </tr>`;
-    }).join('');
-}
-
-function renderAdminTable() {
-    const tbody = $('adminManageBody');
-    if (!tbody) return;
-
-    if (qslRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#7e96af;">無紀錄</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = qslRecords.map(r => {
-        const recvHtml = `
-            <div class="upload-btns">
-                <label for="recv-${r.id}">📥 上傳</label>
-                <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
-                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
-            </div>`;
-
-        const sentHtml = `
-            <div class="upload-btns">
-                <label for="sent-${r.id}">📤 上傳</label>
-                <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
-                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
-            </div>`;
-
-        let reqHtml = '—';
-        if (r.requests && r.requests.length > 0) {
-            reqHtml = r.requests.map((req, idx) => {
-                let statusHtml = '';
-                if (req.status === 'pending') {
-                    statusHtml = `<span class="badge-pending">待處理</span>
-                        <button class="btn btn-outline btn-sm" style="margin-left:4px;" onclick="approveRequest(${r.id}, ${idx})">核准</button>
-                        <button class="btn btn-outline btn-sm" onclick="rejectRequest(${r.id}, ${idx})">拒絕</button>`;
-                } else if (req.status === 'approved') {
-                    statusHtml = `<span class="badge-approved">已核准</span>`;
-                } else if (req.status === 'rejected') {
-                    statusHtml = `<span class="badge-rejected">已拒絕</span>`;
-                }
-                return `<div style="margin-bottom:4px; font-size:0.8rem;">
-                    <span style="color:#5a6e85;">${escapeHtml(req.userCall)}</span>
-                    ${statusHtml}
-                </div>`;
-            }).join('');
-        }
-
-        return `<tr>
-            <td>${escapeHtml(r.date)}</td>
-            <td>${escapeHtml(r.call)}</td>
-            <td>${escapeHtml(r.band)}</td>
-            <td>${escapeHtml(r.mode)}</td>
-            <td>${recvHtml}</td>
-            <td>${sentHtml}</td>
-            <td>${reqHtml}</td>
-            <td><button class="btn btn-outline btn-sm" onclick="deleteRecord(${r.id})" style="padding:6px 14px; font-size:0.8rem;">刪除</button></td>
-        </tr>`;
-    }).join('');
-}
-
-// ============================================================
-// 用戶操作
-// ============================================================
-function requestQSL(recordId) {
-    if (!userCallsign) {
-        showToast('請先設定您的呼號');
-        return;
-    }
-    const record = qslRecords.find(r => r.id === recordId);
-    if (!record) return;
-
-    if ((record.requests || []).some(req => req.userCall === userCallsign)) {
-        showToast('您已申請過此通聯的 QSL 換卡');
-        return;
-    }
-
-    if (!record.requests) record.requests = [];
-    record.requests.push({
-        userCall: userCallsign,
-        requestDate: new Date().toISOString().slice(0, 10),
-        status: 'pending'
-    });
-
-    saveData(qslRecords);
-    showToast(`✅ 已送出 ${record.call} 的 QSL 換卡申請`);
-    renderCurrentTab();
-}
-
-// ============================================================
-// 管理員操作
-// ============================================================
-function handleQslImageUpload(recordId, type, event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-        showToast('⚠️ 請上傳圖片檔案');
-        event.target.value = '';
-        return;
-    }
-
-    if (file.size > 800 * 1024) {
-        showToast('⚠️ 圖片超過 800KB，請壓縮後再上傳');
-        event.target.value = '';
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        const record = qslRecords.find(r => r.id === recordId);
-        if (!record) return;
-
-        if (type === 'received') {
-            record.receivedImg = base64;
-        } else if (type === 'sent') {
-            record.sentImg = base64;
-        }
-
-        saveData(qslRecords);
-        renderAdminTable();
-        showToast(`✅ 已上傳 ${type === 'received' ? '收到' : '發出'} QSL 圖片`);
-        event.target.value = '';
-    };
-    reader.readAsDataURL(file);
-}
-
-function approveRequest(recordId, reqIndex) {
-    const record = qslRecords.find(r => r.id === recordId);
-    if (!record || !record.requests || !record.requests[reqIndex]) return;
-    record.requests[reqIndex].status = 'approved';
-    saveData(qslRecords);
-    renderAdminTable();
-    showToast('✅ 已核准申請');
-}
-
-function rejectRequest(recordId, reqIndex) {
-    const record = qslRecords.find(r => r.id === recordId);
-    if (!record || !record.requests || !record.requests[reqIndex]) return;
-    record.requests[reqIndex].status = 'rejected';
-    saveData(qslRecords);
-    renderAdminTable();
-    showToast('已拒絕申請');
-}
-
-function deleteRecord(id) {
-    if (!confirm('確定要刪除此筆通聯紀錄嗎？')) return;
-    qslRecords = qslRecords.filter(r => r.id !== id);
-    saveData(qslRecords);
-    renderAdminTable();
-    showToast('🗑️ 紀錄已刪除');
-}
-
-function clearAllRecords() {
-    if (!confirm('⚠️ 確定要清除所有通聯紀錄嗎？此操作無法復原。')) return;
-    qslRecords = [];
-    saveData(qslRecords);
-    renderAdminTable();
-    showToast('所有紀錄已清除');
-}
-
-function resetToDemo() {
-    if (!confirm('將重置為預設示範資料，確定嗎？')) return;
-    qslRecords = JSON.parse(JSON.stringify(defaultRecords));
-    saveData(qslRecords);
-    renderAdminTable();
-    showToast('已重置為示範資料');
-}
-
-function addManualRecord() {
-    const date = $('manualDate').value.trim();
-    const call = $('manualCall').value.trim();
-    const band = $('manualBand').value.trim();
-    const mode = $('manualMode').value.trim();
-    const note = $('manualNote').value.trim();
-
-    if (!date || !call || !band || !mode) {
-        showToast('請填寫日期、呼號、頻段、模式');
-        return;
-    }
-
-    qslRecords.push({
-        id: Date.now(),
-        date: date,
-        call: call.toUpperCase(),
-        band: band,
-        mode: mode.toUpperCase(),
-        note: note,
-        receivedImg: null,
-        sentImg: null,
-        requests: []
-    });
-
-    saveData(qslRecords);
-    renderAdminTable();
-
-    $('manualDate').value = '';
-    $('manualCall').value = '';
-    $('manualBand').value = '';
-    $('manualMode').value = '';
-    $('manualNote').value = '';
-
-    showToast(`✅ 已新增通聯紀錄 ${call.toUpperCase()}`);
-}
-
-// ---------- ADIF ----------
-function handleAdifSelect(event) {
-    const file = event.target.files[0];
-    if (file) {
-        selectedAdifFile = file;
-        const display = $('adifFileNameDisplay');
-        if (display) display.textContent = `已選擇：${file.name}`;
-    } else {
-        selectedAdifFile = null;
-        const display = $('adifFileNameDisplay');
-        if (display) display.textContent = '';
-    }
-}
-
-function parseADIF(content) {
-    const records = [];
-    let current = {};
-    let pos = 0;
-    const len = content.length;
-
-    const headerEnd = content.toUpperCase().indexOf('<EOH>');
-    if (headerEnd !== -1) pos = headerEnd + 5;
-
-    while (pos < len) {
-        const tagStart = content.indexOf('<', pos);
-        if (tagStart === -1) break;
-        const tagEnd = content.indexOf('>', tagStart);
-        if (tagEnd === -1) break;
-
-        const tagFull = content.substring(tagStart + 1, tagEnd).trim();
-        const parts = tagFull.split(':');
-        const fieldName = parts[0].trim().toUpperCase();
-        let fieldLen = parts.length > 1 ? parseInt(parts[1].trim(), 10) : null;
-
-        pos = tagEnd + 1;
-
-        let value = '';
-        if (fieldLen !== null && !isNaN(fieldLen)) {
-            value = content.substring(pos, pos + fieldLen).trim();
-            pos += fieldLen;
-        } else {
-            if (fieldName === 'EOR') {
-                if (Object.keys(current).length > 0) {
-                    records.push({ ...current });
-                    current = {};
-                }
-            }
-            continue;
-        }
-
-        if (fieldName === 'EOR') {
-            if (Object.keys(current).length > 0) {
-                records.push({ ...current });
-                current = {};
-            }
-        } else if (fieldName === 'QSO_DATE') {
-            let d = value;
-            if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
-            current.date = d;
-        } else if (fieldName === 'CALL') {
-            current.call = value.toUpperCase();
-        } else if (fieldName === 'BAND') {
-            current.band = value;
-        } else if (fieldName === 'MODE') {
-            current.mode = value.toUpperCase();
-        } else if (fieldName === 'FREQ') {
-            if (!current.band) {
-                const freq = parseFloat(value);
-                if (!isNaN(freq)) {
-                    if (freq >= 1.8 && freq <= 2.0) current.band = '160m';
-                    else if (freq >= 3.5 && freq <= 4.0) current.band = '80m';
-                    else if (freq >= 7.0 && freq <= 7.3) current.band = '40m';
-                    else if (freq >= 10.1 && freq <= 10.15) current.band = '30m';
-                    else if (freq >= 14.0 && freq <= 14.35) current.band = '20m';
-                    else if (freq >= 18.068 && freq <= 18.168) current.band = '17m';
-                    else if (freq >= 21.0 && freq <= 21.45) current.band = '15m';
-                    else if (freq >= 24.89 && freq <= 24.99) current.band = '12m';
-                    else if (freq >= 28.0 && freq <= 29.7) current.band = '10m';
-                    else if (freq >= 50 && freq <= 54) current.band = '6m';
-                    else if (freq >= 144 && freq <= 148) current.band = '2m';
-                    else if (freq >= 430 && freq <= 440) current.band = '70cm';
-                }
-            }
-        } else if (fieldName === 'COMMENT' || fieldName === 'NOTES') {
-            current.note = (current.note || '') + value;
-        }
-    }
-
-    if (Object.keys(current).length > 0) records.push({ ...current });
-    return records;
-}
-
-function uploadADIF() {
-    if (!selectedAdifFile) {
-        showToast('請先選擇 ADIF 檔案');
-        return;
-    }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const content = e.target.result;
-        const parsed = parseADIF(content);
-        let newRecords = [];
-        let
+        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state
