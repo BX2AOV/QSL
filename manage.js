@@ -14,13 +14,16 @@ const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 let selectedAdifFile = null;
 
+// 紀錄目前網頁載入的時間
+const currentLoadTime = new Date().getTime();
+
 // 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
     t.textContent = msg; t.classList.add('show'); 
     clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 3500); // 延長顯示時間方便看錯誤
+    window.tt = setTimeout(() => t.classList.remove('show'), 3500); 
 }
 function escapeHtml(text) { 
     if (!text) return ''; 
@@ -83,6 +86,42 @@ function checkUser() {
 }
 
 // ============================================================
+// 網頁版本檢測 (CF 更新檢查)
+// ============================================================
+async function checkUpdate() {
+    const statusEl = document.getElementById('updateStatus');
+    const btn = document.getElementById('btnCheckUpdate');
+    
+    statusEl.innerHTML = '⏳ 正在檢查 Cloudflare 最新版本...';
+    btn.disabled = true;
+
+    try {
+        // 加上時間戳記，強制繞過 CF 快取，抓取伺服器上最新的 manage.html
+        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { cache: 'no-store' });
+        const text = await response.text();
+        
+        // 這裡用一個簡單的判斷：比對檔案長度或特徵
+        // 如果你有在 HTML 裡面寫版本號，也可以抓取特定字串
+        // 為了簡化，我們檢查檔案長度是否與當前不同
+        const currentHtmlLength = document.documentElement.outerHTML.length;
+        
+        if (text.length !== currentHtmlLength) {
+            statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案已更新。<br>請按下重新整理 (Ctrl+F5) 載入最新畫面。`;
+            statusEl.style.color = '#0e6b3e';
+        } else {
+            statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 尚未發布新更新，或快取還未過期。`;
+            statusEl.style.color = '#5a6e85';
+        }
+    } catch (error) {
+        console.error('檢查更新失敗', error);
+        statusEl.innerHTML = '❌ 檢查失敗，請確認網路連線。';
+        statusEl.style.color = '#b03030';
+    }
+
+    btn.disabled = false;
+}
+
+// ============================================================
 // 雲端空間監測 (估算)
 // ============================================================
 async function calculateStorageUsage() {
@@ -92,7 +131,6 @@ async function calculateStorageUsage() {
     const stText = document.getElementById('storageUsageText');
     if (!dbBar || !stBar) return;
 
-    // 1. 估算資料庫容量
     try {
         const { data: allRecords, error } = await _supabase.from('qsl_records').select('*');
         if (!error && allRecords) {
@@ -105,7 +143,6 @@ async function calculateStorageUsage() {
         }
     } catch (e) { dbText.textContent = '無法估算'; }
 
-    // 2. 估算圖片容量
     try {
         const { data: files, error: storageError } = await _supabase.storage.from('qsl-images').list();
         if (!storageError && files) {
@@ -135,7 +172,6 @@ async function renderAdminTable() {
     if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
 
     manageTableBody.innerHTML = data.map(r => {
-        // 處理申請列表
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
@@ -163,7 +199,6 @@ async function renderAdminTable() {
             }).join('');
         }
 
-        // 處理圖片上傳區塊
         const recvHtml = `
             <div class="upload-btns" style="margin-bottom:6px;">
                 <label for="recv-${r.id}">📥 收到</label>
@@ -230,7 +265,6 @@ async function handleQslImageUpload(recordId, type, event) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
-    // 上傳到 Storage
     const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
     if (uploadError) { 
         console.error("Storage上傳失敗:", uploadError);
@@ -239,14 +273,10 @@ async function handleQslImageUpload(recordId, type, event) {
         return; 
     }
 
-    // 取得網址
     const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
-    
-    // 準備寫入資料庫的資料
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
 
-    // 寫入資料庫
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     
     if (dbError) { 
@@ -350,6 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
     
+    // 新增：檢查更新按鈕綁定
+    document.getElementById('btnCheckUpdate')?.addEventListener('click', checkUpdate);
+
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
