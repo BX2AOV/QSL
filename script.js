@@ -109,4 +109,21 @@ function renderMainTable() {
             <td><strong>${escapeHtml(displayTime)}</strong></td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
-            <td><span style="font-weight:bold; color
+            <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
+            <td>${recvImg}</td>
+            <td>${sentImg}</td>
+            <td><span class="${st.cls}">${st.text}</span></td>
+            <td>${escapeHtml(displayNote)}</td>
+        </tr>`;
+    }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('qsoTableBody')) return;
+
+    const lb = document.getElementById('lightbox');
+    if (lb) lb.addEventListener('click', closeLightbox);
+    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+
+    fetchData();
+});
