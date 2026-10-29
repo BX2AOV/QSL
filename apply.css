@@ -1,15 +1,128 @@
-/* 表單容器 */
-.ship-form { display: flex !important; flex-direction: column !important; gap: 20px !important; max-width: 100% !important; }
-.form-row { display: flex !important; flex-direction: column !important; gap: 8px !important; }
-.form-row label { font-size: 0.95rem !important; font-weight: 600 !important; color: #1a3a5c !important; }
-.form-row label .required { color: #e53e3e !important; }
-.form-row input { width: 100% !important; padding: 14px 20px !important; border-radius: 16px !important; border: 1.5px solid #cbdae8 !important; font-size: 1rem !important; color: #2b4056 !important; background-color: #f8fbfe !important; outline: none !important; transition: all 0.25s ease !important; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02) !important; font-family: inherit !important; box-sizing: border-box !important; }
-.form-row input:focus { border-color: #0066cc !important; background-color: #ffffff !important; box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15) !important; }
-.form-row input::placeholder { color: #a0b2c6 !important; }
+/* ============================================================
+   apply.html 專用樣式
+   ============================================================ */
 
-/* 並排排版 */
-.row-group { display: flex !important; gap: 16px !important; }
-.row-group .form-row { flex: 1 !important; }
+/* ===== 1. 查詢呼號區塊 ===== */
+.user-callsign-area {
+    display: flex;
+    flex-wrap: wrap; /* 允許在小螢幕換行 */
+    align-items: center;
+    gap: 12px;
+    background: #f8fbfe;
+    padding: 16px 20px;
+    border-radius: 20px; /* 改為 20px 圓角，比原本的膠囊形更好看 */
+    border: 1px solid #dbe7f3;
+}
 
-@media (min-width: 600px) { #shipPhone, #shipZip { max-width: 250px !important; } }
-@media (max-width: 500px) { .row-group { flex-direction: column !important; gap: 20px !important; } }
+#queryCallsignInput {
+    flex: 1 1 200px; /* 佔據剩餘空間，最小 200px */
+    padding: 14px 20px;
+    border-radius: 12px; /* 輸入框圓角 */
+    border: 1.5px solid #cbdae8;
+    font-size: 1rem;
+    color: #2b4056;
+    background-color: #ffffff;
+    outline: none;
+    transition: all 0.25s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+    font-family: inherit;
+}
+
+/* 點擊輸入框時的藍色光暈 */
+#queryCallsignInput:focus {
+    border-color: #0066cc;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+}
+
+#queryCallsignInput::placeholder {
+    color: #a0b2c6;
+    font-weight: 400;
+}
+
+/* ===== 2. 收件資訊表單 ===== */
+.ship-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* 欄位之間的間距 */
+    max-width: 100%;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* 標籤與輸入框的距離 */
+}
+
+.form-row label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a3a5c;
+    letter-spacing: 0.5px;
+}
+
+.form-row label .required {
+    color: #e53e3e;
+    margin-left: 2px;
+}
+
+/* 輸入框美化 (包含文字與電話) */
+.ship-form .form-row input[type="text"],
+.ship-form .form-row input[type="tel"] {
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 12px; /* 現代感圓角 */
+    border: 1.5px solid #cbdae8;
+    font-size: 1rem;
+    color: #2b4056;
+    background-color: #f8fbfe;
+    outline: none;
+    transition: all 0.25s ease;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+/* 輸入框 Focus 效果 */
+.ship-form .form-row input[type="text"]:focus,
+.ship-form .form-row input[type="tel"]:focus {
+    border-color: #0066cc;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+}
+
+/* Placeholder 提示文字顏色 */
+.ship-form .form-row input::placeholder {
+    color: #a0b2c6;
+    font-weight: 400;
+}
+
+/* ===== 3. 排版優化 (並排與響應式) ===== */
+.row-group {
+    display: flex;
+    gap: 16px;
+}
+
+.row-group .form-row {
+    flex: 1;
+}
+
+/* 在大螢幕上限制手機和郵遞區號的寬度，避免太長 */
+@media (min-width: 600px) {
+    #shipPhone, #shipZip {
+        max-width: 250px;
+    }
+}
+
+/* 手機版特殊排版 */
+@media (max-width: 500px) {
+    /* 讓並排的欄位變成上下排列 */
+    .row-group {
+        flex-direction: column;
+        gap: 18px;
+    }
+    
+    /* 手機上讓查詢按鈕變為滿版，更好點擊 */
+    .user-callsign-area .btn {
+        width: 100%;
+    }
+}
