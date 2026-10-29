@@ -40,7 +40,6 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     z-index: 1;
 }
 
-/* 當目前的語言是英文時，白色的滑塊會滑到右邊 */
 .lang-switch[data-active="en"] .lang-slider {
     transform: translateX(100%);
 }
@@ -55,7 +54,6 @@ body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: co
     transition: color 0.3s;
 }
 
-/* 啟動時的顏色：中文或英文會變深色 */
 .lang-switch[data-active="zh"] .lang-option[data-lang="zh"],
 .lang-switch[data-active="en"] .lang-option[data-lang="en"] {
     color: #0b2a4a;
@@ -136,9 +134,36 @@ tr:hover td { background: #fafdff; }
 .flex-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .empty-state { text-align: center; padding: 40px 20px; color: #7e96af; }
 
-/* ===== 響應式 ===== */
+/* ===== 響應式 (手機版優化) ===== */
 @media (max-width: 700px) {
-    .header-bar { border-radius: 32px; padding: 12px 18px; justify-content: center; }
-    .nav-links a { padding: 8px 14px; font-size: 0.85rem; }
+    /* 頂部橫列變成上下排列 */
+    .header-bar { 
+        flex-direction: column; 
+        border-radius: 24px; 
+        padding: 16px; 
+        gap: 16px;
+    }
+    
+    /* 導覽列與切換開關並排 */
+    .nav-links { 
+        justify-content: center; 
+        width: 100%; 
+    }
+    .nav-links a { 
+        padding: 8px 14px; 
+        font-size: 0.85rem; 
+    }
+
+    /* 讓右上角的區塊變成橫向排列且置中 */
+    .header-bar > div:last-child {
+        width: 100%;
+        justify-content: center;
+        margin-top: 4px;
+    }
+
     .card { padding: 20px 18px; border-radius: 24px; }
+    
+    /* 表格字體稍微縮小，讓手機更好閱讀 */
+    table { font-size: 0.8rem; min-width: 800px; }
+    th, td { padding: 10px 12px; }
 }
