@@ -69,9 +69,11 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
-function escAttr(text) {
-    if (text === null || text === undefined) return '';
-    return String(text).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, ''');
+function escAttr(text) { 
+    if (!text) return ''; 
+    const div = document.createElement('div'); 
+    div.textContent = text; 
+    return div.innerHTML; 
 }
 
 function computeQslStatus(r) {
