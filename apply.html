@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的申請 - BX2AOV QSL confirm</title>
-    <!-- 引入共用的 style.css -->
     <link rel="stylesheet" href="style.css">
-    <!-- 引入 apply.html 專用的 apply.css (必須放在 style.css 之後) -->
     <link rel="stylesheet" href="apply.css">
+    <!-- 引入 Supabase 前端程式庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="app-container">
@@ -31,7 +31,7 @@
         <!-- 步驟 1：輸入呼號查詢 -->
         <section class="card">
             <h2>🔍 查詢我的通聯紀錄</h2>
-            <div class="card-sub">輸入您的呼號，系統會自動找出資料庫中屬於您的通聯紀錄。</div>
+            <div class="card-sub">輸入您的呼號，系統會自動從資料庫中找出屬於您的通聯紀錄。</div>
             <div class="user-callsign-area">
                 <input type="text" id="queryCallsignInput" placeholder="輸入您的呼號" style="text-transform:uppercase;">
                 <button class="btn btn-primary" id="btnQuery">查詢通聯紀錄</button>
@@ -66,7 +66,6 @@
                     <input type="text" id="shipName" placeholder="請輸入收件人姓名">
                 </div>
                 
-                <!-- 使用 row-group 讓這兩個並排 -->
                 <div class="row-group">
                     <div class="form-row">
                         <label>手機號碼 <span class="required">*</span></label>
@@ -114,16 +113,15 @@
         </section>
     </div>
 
-    <!-- 燈箱 (點擊圖片放大) -->
+    <!-- 燈箱 -->
     <div class="lightbox" id="lightbox">
         <span class="lightbox-close" id="lightboxClose">×</span>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
-    <!-- 提示訊息 Toast -->
     <div id="toast" class="toast">操作成功</div>
 
-    <!-- 只載入 apply.js，不依賴 script.js -->
+    <!-- 載入我們改寫的 apply.js -->
     <script src="apply.js"></script>
 </body>
 </html>
