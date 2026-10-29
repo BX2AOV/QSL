@@ -16,29 +16,42 @@
                 <span class="callsign-badge">BX2AOV</span>
             </div>
             <ul class="nav-links">
-                <li><a href="index.html" class="nav-tab active">總覽</a></li>
-                <li><a href="apply.html" class="nav-tab">我的申請</a></li>
-                <li><a href="manage.html" class="nav-tab">管理員</a></li>
+                <!-- 加入 data-zh 與 data-en 屬性 -->
+                <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-en="Overview">總覽</a></li>
+                <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-en="My Requests">我的申請</a></li>
+                <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-en="Admin">管理員</a></li>
             </ul>
-            <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
-                <span class="role-badge">訪客</span>
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <!-- 語言切換按鈕 -->
+                <button id="langToggle" class="btn btn-outline btn-sm" style="padding: 6px 12px; font-size: 0.85rem;">EN</button>
+                <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                    <span class="role-badge" data-zh="訪客" data-en="Guest">訪客</span>
+                </div>
             </div>
         </header>
 
         <section class="card">
-            <h2>📋 通聯紀錄與 QSL 狀態</h2>
-            <div class="card-sub">點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 <b>UTC 世界標準時間</b>。</div>
+            <h2 data-zh="📋 通聯紀錄與 QSL 狀態" data-en="📋 QSO Logs & QSL Status">📋 通聯紀錄與 QSL 狀態</h2>
+            <div class="card-sub" data-zh="點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。" data-en="Click on thumbnails to enlarge QSL images. All times in the table are UTC.">點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。</div>
+            
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <!-- 日期保持原樣，只有時間加上 (UTC) -->
-                            <th>日期</th><th>時間 (UTC)</th><th>呼號</th><th>頻段</th><th>模式</th>
-                            <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>備註</th>
+                            <th data-zh="日期" data-en="Date">日期</th>
+                            <th data-zh="時間 (UTC)" data-en="Time (UTC)">時間 (UTC)</th>
+                            <th data-zh="呼號" data-en="Callsign">呼號</th>
+                            <th data-zh="頻段" data-en="Band">頻段</th>
+                            <th data-zh="模式" data-en="Mode">模式</th>
+                            <th data-zh="收到 QSL" data-en="Rcvd QSL">收到 QSL</th>
+                            <th data-zh="發出 QSL" data-en="Sent QSL">發出 QSL</th>
+                            <th data-zh="狀態" data-en="Status">狀態</th>
+                            <th data-zh="備註" data-en="Notes">備註</th>
                         </tr>
                     </thead>
                     <tbody id="qsoTableBody">
-                        <tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>
+                        <tr><td colspan="9"><div class="empty-state" data-zh="⏳ 資料載入中..." data-en="⏳ Loading data...">⏳ 資料載入中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
