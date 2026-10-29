@@ -1,0 +1,165 @@
+/* ============================================================
+   苏联构成主義主题 (Soviet Constructivism Theme)
+   色调：革命红 #d0021b / 金黄 #ffd700 / 黑 #0a0a0a / 白 #f0f0f0
+   特征：粗体大写、尖角方块、立体阴影、五角星、红旗页眉
+   ============================================================ */
+
+:root {
+  --soviet-red: #d0021b;
+  --soviet-red-dark: #8b0000;
+  --soviet-gold: #ffd700;
+  --soviet-black: #0a0a0a;
+  --soviet-white: #f0f0f0;
+  --soviet-gray: #333333;
+}
+
+/* 全局 */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: auto; }
+
+body {
+  background: #0a0a0a;
+  color: #f0f0f0;
+  font-family: 'Arial Black', 'Impact', 'Franklin Gothic Heavy', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 20px;
+  /* 网格工业背景纹理 */
+  background-image:
+    linear-gradient(45deg, #121212 25%, transparent 25%),
+    linear-gradient(-45deg, #121212 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #121212 75%),
+    linear-gradient(-45deg, transparent 75%, #121212 75%);
+  background-size: 20px 20px;
+  background-color: #0a0a0a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.app-container { max-width: 1200px; margin: 0 auto; }
+
+/* ---------- 页眉：红旗 ---------- */
+.header-bar {
+  background: linear-gradient(180deg, #d0021b 0%, #8b0000 100%);
+  color: #fff;
+  border: 4px solid #ffd700;
+  border-radius: 0;
+  padding: 16px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 0 #000;
+  position: relative;
+}
+
+.header-bar::after {
+  content: "";
+  position: absolute;
+  bottom: -6px; left: 0; right: 0;
+  height: 6px;
+  background: repeating-linear-gradient(90deg, #8b0000, #8b0000 4px, #d0021b 4px, #d0021b 8px);
+}
+
+.logo-area { color: #fff; font-weight: 900; font-size: 1.5rem; text-shadow: 2px 2px 0 #000; }
+.logo-icon {
+  background: #ffd700; color: #0a0a0a; width: 42px; height: 42px;
+  border-radius: 0; border: 2px solid #000; box-shadow: 3px 3px 0 #000;
+  display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+}
+.callsign-badge {
+  background: #ffd700; color: #0a0a0a; padding: 4px 12px; border-radius: 0;
+  font-size: 0.9rem; font-weight: 900; letter-spacing: 1.5px;
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+}
+
+/* ---------- 导航 ---------- */
+.nav-links { gap: 0; }
+.nav-links a {
+  background: rgba(0,0,0,0.35); color: #fff; padding: 10px 20px;
+  border-radius: 0; font-weight: 900; border: 1px solid #ffd700;
+  margin-left: -1px; transition: none; display: block;
+}
+.nav-links a:hover, .nav-links a.active {
+  background: #ffd700; color: #0a0a0a;
+}
+
+/* ---------- 语言切换 ---------- */
+.lang-switch {
+  background: transparent; border: 2px solid #ffd700; border-radius: 0;
+  padding: 2px; width: max-content;
+}
+.lang-slider { background: #ffd700; border-radius: 0; box-shadow: 2px 2px 0 #000; }
+.lang-option { color: #fff; font-weight: 900; font-size: 0.8rem; }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: #1a1a1a; border: 3px solid #d0021b; border-radius: 0;
+  padding: 20px; box-shadow: 6px 6px 0 #000; margin-bottom: 20px;
+}
+.card h2 {
+  color: #ffd700; border-bottom: 3px double #d0021b;
+  font-size: 1.4rem; letter-spacing: 2px; margin-bottom: 14px;
+}
+.card-sub { color: #aaa; margin-bottom: 16px; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  background: #d0021b; color: #fff; border: 2px solid #000; border-radius: 0;
+  font-weight: 900; letter-spacing: 1px; box-shadow: 3px 3px 0 #000;
+  transition: none; cursor: pointer; display: inline-flex;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.btn:hover {
+  background: #ffd700; color: #0a0a0a; transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 #000;
+}
+.btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+.btn-primary { background: #d0021b; color: #fff; }
+.btn-outline { background: transparent; border-color: #ffd700; color: #ffd700; }
+.btn-sm { padding: 6px 14px; font-size: 0.85rem; }
+
+/* ---------- 表格 ---------- */
+table { width: 100%; border-collapse: collapse; background: #1a1a1a; border: 3px solid #d0021b; }
+th {
+  background: #d0021b; color: #fff; font-weight: 900;
+  border: 2px solid #000; padding: 12px 8px; font-size: 0.85rem;
+}
+td {
+  border: 2px solid #333; color: #e0e0e0; padding: 10px 8px;
+  font-family: 'Courier New', 'Consolas', monospace;
+}
+tr:nth-child(even) td { background: #222; }
+tr:hover td { background: #2a2a2a; }
+
+/* ---------- 表单控件 ---------- */
+input, select, textarea {
+  background: #1a1a1a; color: #fff; border: 2px solid #ffd700;
+  border-radius: 0; padding: 10px; font-family: inherit; font-weight: bold;
+}
+input::placeholder { color: #888; }
+input:focus { outline: none; border-color: #d0021b;
+  box-shadow: 0 0 0 3px rgba(208, 2, 27, 0.3); }
+
+/* ---------- 徽章 ---------- */
+.role-badge {
+  background: #d0021b; color: #fff; border: 2px solid #000; border-radius: 0;
+  font-weight: 900; letter-spacing: 1px; padding: 4px 12px;
+  box-shadow: 2px 2px 0 #000; font-size: 0.85rem;
+}
+.role-badge.admin { background: #ffd700; color: #0a0a0a; }
+
+/* ---------- 轻提示 ---------- */
+.toast {
+  background: #d0021b; color: #fff; border: 2px solid #000;
+  border-radius: 0; box-shadow: 3px 3px 0 #000;
+  font-weight: 900; padding: 10px 16px;
+}
+
+/* ---------- 五角星装饰 ---------- */
+.star::before { content: "★ "; color: #ffd700; margin-right: 6px; }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+  body { padding: 10px; }
+  .header-bar { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .nav-links { flex-wrap: wrap; }
+}
