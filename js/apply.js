@@ -71,7 +71,7 @@ function escapeHtml(text) {
 
 function escAttr(text) {
     if (text === null || text === undefined) return '';
-    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(text).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, ''');
 }
 
 function computeQslStatus(r) {
@@ -197,13 +197,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
         unlockedRecords = {}; // 切換呼號時重置解鎖
 
-        await loadMyRequests();
+        await loadMyRequests();;
         
         // 印出資料，確認 RPC 有沒有正常運作
         console.log("📦 從資料庫抓到的申請紀錄:", myRequests); 
 
         renderQueryResult();
-        renderMyRequests();
+        renderMyRequests();;
         
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
@@ -382,78 +382,39 @@ document.addEventListener('DOMContentLoaded', function() {
             const rec = recordMap.get(Number(req.record_id)) || {};
             const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
             
-            // 判斷是否已解鎖
-            const isUnlocked = unlockedRecords[req.record_id];
-
+            // 顯示狀態：已解鎖顯示「已核准/已拒絕」，未解鎖顯示「待處理」+上鎖圖示
+            // 未解鎖時不顯示真實的地址/電話，僅顯示狀態
             let statusHtml = '';
             
-            if (isUnlocked) {
-                // 已解鎖顯示真實資料
-                const data = unlockedRecords[req.record_id];
+            if (req.status === 'approved' || req.status === 'rejected') {
+                // 已有審核結果，顯示狀態
                 statusHtml = `
-                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span></div>
+                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span class="lock-tag">🔒 已上鎖</span></div>
                     <div style="font-size:0.8rem; color:#333;">
-                        <strong>地址：</strong>${escapeHtml(data.ship_zip)} ${escapeHtml(data.ship_addr)}<br>
-                        <strong>手機：</strong>${escapeHtml(data.ship_phone || '未提供')}
+                        <strong>狀態：</strong>${txt}
                     </div>
                 `;
             } else {
-                // 未解鎖顯示上鎖按鈕
+                // 尚無審核結果，顯示待處理
                 statusHtml = `
                     <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span class="lock-tag">🔒 已上鎖</span></div>
-                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}">🔓 解鎖詳情</button>
+                    <div style="font-size:0.8rem; color:#333;">
+                        <strong>狀態：</strong>待處理
+                    </div>
                 `;
             }
 
             return `<tr>
                 <td>${escapeHtml(req.request_date || '—')}</td>
                 <td><strong>${escapeHtml(rec.call || '—')}</strong></td>
-                <td>${escapeHtml(rec.date || '—')}</td>
+                <td>${escapeHtml(req.date || '—')}</td>
                 <td>${escapeHtml(rec.band || '—')} / ${escapeHtml(rec.mode || '—')}</td>
                 <td>${shipInfo}</td>
                 <td>${statusHtml}</td>
             </tr>`;
         }).join('');
 
-        // 綁定解鎖按鈕事件
-        document.querySelectorAll('.btn-unlock').forEach(btn => {
-            btn.addEventListener('click', async function() {
-                const id = this.dataset.id;
-                const btn = this;
-                const originalText = btn.textContent;
-                
-                const pwd = prompt('請輸入您當初設定的查詢密碼：');
-                if (!pwd) return;
-                
-                btn.textContent = '驗證中...';
-                btn.disabled = true;
-                
-                // 呼叫單筆驗證
-                const { data, error } = await _supabase.rpc('verify_qsl_password', { 
-                    p_record_id: Number(id),
-                    p_user_call: queryCallsign,
-                    p_password: pwd
-                });
-
-                btn.textContent = originalText;
-                btn.disabled = false;
-
-                if (error) {
-                    showToast('❌ 驗證失敗（請檢查 Console 或聯絡管理員）');
-                    console.error('verify_qsl_password error:', error);
-                } else if (data && data.success) {
-                    showToast('✅ 解鎖成功，地址與手機已顯示');
-                    unlockedRecords[id] = {
-                        ship_addr: data.ship_addr,
-                        ship_zip: data.ship_zip,
-                        ship_phone: data.ship_phone
-                    };
-                    renderMyRequests(); // 重新渲染
-                } else {
-                    showToast('❌ 密碼錯誤，請重新輸入');
-                }
-            });
-        });
+        // 解鎖按鈕事件已移除 - 僅顯示狀態
     }
 
     btnQuery.addEventListener('click', doQuery);
