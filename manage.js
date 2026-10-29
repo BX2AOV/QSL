@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (Supabase Auth 登入版)
+   manage.js - 管理員後台完整邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -68,10 +68,10 @@ function getDaysSince(dateString) {
 }
 
 // ============================================================
-// 🌟 登入與登出 (改用 Supabase Auth)
+// 登入與登出 (使用 Supabase Auth)
 // ============================================================
 async function login() {
-    const email = document.getElementById('adminUser').value.trim(); // 這裡現在要填 Email
+    const email = document.getElementById('adminUser').value.trim();
     const password = document.getElementById('adminPassword').value.trim();
     if (!email || !password) { showToast('請輸入 Email 與密碼'); return; }
 
@@ -270,6 +270,7 @@ async function renderAdminTable() {
     }).join('');
 }
 
+// ... 以下為各項操作函數 (changeStatus, deleteRecord, handleQslImageUpload 等，保持不變) ...
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
@@ -332,9 +333,6 @@ async function rejectRequest(recordId, reqIndex) {
     showToast('已拒絕申請'); renderAdminTable();
 }
 
-// ============================================================
-// 圖片上傳與自動壓縮
-// ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -401,7 +399,7 @@ async function handleQslImageUpload(recordId, type, event) {
 }
 
 // ============================================================
-// ADIF 上傳
+// ADIF 上傳與手動新增
 // ============================================================
 function handleAdifSelect(event) {
     const files = event.target.files;
@@ -581,6 +579,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnClearFiles')?.addEventListener('click', clearSelectedFiles);
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
+
+    // 👇 新增 LoTW 同步按鈕的點擊事件 👇
+    document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = '⏳ 正在從 LoTW 抓取資料...';
+
+        // 呼叫你剛剛部署的 Edge Function (名稱是 rapid-response)
+        const { data, error } = await _supabase.functions.invoke('rapid-response');
+
+        btn.disabled = false;
+        btn.textContent = '🔄 從 LoTW 自動同步已確認卡片';
+
+        if (error) {
+            showToast('❌ 同步失敗: ' + error.message);
+            console.error(error);
+        } else if (data && data.error) {
+            showToast('❌ 錯誤: ' + data.error);
+        } else {
+            showToast('✅ ' + (data.message || '同步成功！'));
+            renderAdminTable(); // 重新整理表格以顯示更新後的狀態
+        }
+    });
 
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
