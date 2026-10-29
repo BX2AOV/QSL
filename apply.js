@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const already = isAlreadyRequested(r.id);
             
             let actionHtml = already 
-                ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;">已申請</span>` 
+                ? `<span class="status-badge applied">已申請</span>` 
                 : `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             
             let displayBand = r.band;
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             return `<tr>
-                <td style="text-align:center;">${actionHtml}</td>
+                <td class="status-cell">${actionHtml}</td>
                 <td>${escapeHtml(r.date)}</td>
                 <td><strong>${escapeHtml(r.call)}</strong></td>
                 <td>${escapeHtml(displayBand)}</td> 
