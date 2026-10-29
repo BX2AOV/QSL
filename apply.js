@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (包含四國語言與自訂國碼)
+   apply.js - 申請頁面專用邏輯 (包含分頁與四國語言)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,6 +7,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
+
+// 🌟 分頁專用變數
+let currentPage = 1;
+const itemsPerPage = 10;
 
 // ============================================================
 // 核心：精準點擊哪個語言就切換
@@ -216,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
         matchedRecords.forEach(r => { if (!r.requests) r.requests = []; });
         
+        currentPage = 1; // 搜尋時重置到第一頁
         renderQueryResult();
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
@@ -227,7 +232,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderQueryResult() {
-        queryResultBody.innerHTML = matchedRecords.map(r => {
+        const totalPages = Math.ceil(matchedRecords.length / itemsPerPage);
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedRecords = matchedRecords.slice(startIndex, endIndex);
+
+        queryResultBody.innerHTML = paginatedRecords.map(r => {
             const st = computeQslStatus(r);
             const already = (r.requests || []).some(req => req.userCall === queryCallsign);
             
@@ -235,24 +248,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;" data-zh="已申請" data-cn="已申请" data-en="Requested" data-ja="申請済">已申請</span>` 
                 : `<input type="checkbox" class="record-checkbox" data-id="${r.id}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             
-            // 處理頻段與頻率的顯示
             let displayBand = r.band;
             let displayNote = r.note || '—';
 
             if (r.note) {
                 const satMatch = r.note.match(/^\[(.*?)\]/);
                 if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
-                    displayBand = satMatch[1]; // 衛星名稱
+                    displayBand = satMatch[1]; 
                 } else {
                     const freqMatch = r.note.match(/FREQ:([\d.]+)/);
                     if (freqMatch && freqMatch[1]) {
-                        displayBand = freqMatch[1]; // 頻率
+                        displayBand = freqMatch[1]; 
                     }
                 }
                 
                 const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
                 displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim();
-                displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); // 隱藏 FREQ 字眼
+                displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); 
             }
 
             return `<tr>
@@ -276,6 +288,51 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         updateSelectedCount();
+        updateQueryPagination(totalPages);
+    }
+
+    // 🌟 動態生成申請頁的分頁按鈕
+    function updateQueryPagination(totalPages) {
+        let paginationContainer = document.getElementById('queryPaginationContainer');
+        
+        if (!paginationContainer) {
+            paginationContainer = document.createElement('div');
+            paginationContainer.id = 'queryPaginationContainer';
+            paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
+            
+            const tableWrapper = document.querySelector('#queryResultCard .table-wrapper');
+            if (tableWrapper) {
+                tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
+            }
+        }
+
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
+        const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
+
+        paginationContainer.innerHTML = `
+            <button id="btnQueryPrev" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
+            <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">第 ${currentPage} / ${totalPages} 頁</span>
+            <button id="btnQueryNext" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
+        `;
+
+        document.getElementById('btnQueryPrev').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderQueryResult();
+            }
+        });
+
+        document.getElementById('btnQueryNext').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderQueryResult();
+            }
+        });
     }
 
     function updateSelectedCount() {
