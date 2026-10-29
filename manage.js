@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯
+   manage.js - 管理員後台完整邏輯 (包含空間監測)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -70,7 +70,8 @@ function checkUser() {
         adminPanel.style.display = 'block';
         roleBadge.textContent = '管理員'; 
         roleBadge.className = 'role-badge admin';
-        renderAdminTable(); // 登入後立刻載入資料
+        renderAdminTable(); 
+        calculateStorageUsage(); // 👈 登入後計算空間
     } else {
         loginSection.style.display = 'block'; 
         adminPanel.style.display = 'none';
@@ -82,6 +83,46 @@ function checkUser() {
 }
 
 // ============================================================
+// 雲端空間監測 (估算)
+// ============================================================
+async function calculateStorageUsage() {
+    const dbBar = document.getElementById('dbUsageBar');
+    const dbText = document.getElementById('dbUsageText');
+    const stBar = document.getElementById('storageUsageBar');
+    const stText = document.getElementById('storageUsageText');
+    if (!dbBar || !stBar) return;
+
+    // 1. 估算資料庫容量
+    try {
+        const { data: allRecords, error } = await _supabase.from('qsl_records').select('*');
+        if (!error && allRecords) {
+            const jsonString = JSON.stringify(allRecords);
+            const bytes = new Blob([jsonString]).size;
+            const mb = bytes / (1024 * 1024);
+            const percent = Math.min((mb / 500) * 100, 100);
+            dbBar.style.width = `${Math.max(percent, 0.5)}%`;
+            dbText.textContent = `${mb.toFixed(2)} MB / 500 MB (約 ${percent.toFixed(2)}%)`;
+        }
+    } catch (e) { dbText.textContent = '無法估算'; }
+
+    // 2. 估算圖片容量 (透過 Storage API)
+    try {
+        const { data: files, error: storageError } = await _supabase.storage.from('qsl-images').list();
+        if (!storageError && files) {
+            let totalBytes = 0;
+            files.forEach(file => {
+                if (file.metadata && file.metadata.size) totalBytes += file.metadata.size;
+            });
+            const mb = totalBytes / (1024 * 1024);
+            const percent = Math.min((mb / 1000) * 100, 100);
+            stBar.style.width = `${Math.max(percent, 0.5)}%`;
+            stText.textContent = `${mb.toFixed(2)} MB / 1000 MB (約 ${percent.toFixed(2)}%)`;
+            if (totalBytes === 0 && files.length > 0) stText.textContent = `共有 ${files.length} 張圖片 (無法取得大小)`;
+        }
+    } catch (e) { stText.textContent = '無法估算'; }
+}
+
+// ============================================================
 // 渲染管理表格與操作
 // ============================================================
 async function renderAdminTable() {
@@ -90,18 +131,11 @@ async function renderAdminTable() {
 
     const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
 
-    if (error) {
-        manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">資料載入失敗</div></td></tr>';
-        return;
-    }
-
-    if (data.length === 0) {
-        manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>';
-        return;
-    }
+    if (error) { manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
+    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
 
     manageTableBody.innerHTML = data.map(r => {
-        // 處理使用者的申請列表
+        // 處理申請列表
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
@@ -113,10 +147,7 @@ async function renderAdminTable() {
                 return `
                 <div style="margin-bottom: 10px; padding: 10px; background: #f8fbfe; border-radius: 8px; border: 1px solid #e0e9f2; position: relative;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                        <div>
-                            <strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>
-                            ${statusHtml}
-                        </div>
+                        <div><strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>${statusHtml}</div>
                         <button onclick="deleteRequest(${r.id}, ${idx})" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>
                     </div>
                     <div style="font-size:0.85rem; color:#333; margin-bottom:8px; line-height:1.4;">
@@ -128,8 +159,7 @@ async function renderAdminTable() {
                         <button onclick="approveRequest(${r.id}, ${idx})" style="background:#d9f0e0; color:#0e6b3e; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">核准申請</button>
                         <button onclick="rejectRequest(${r.id}, ${idx})" style="background:#fff0d9; color:#b45f06; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">拒絕申請</button>
                     </div>
-                </div>
-                `;
+                </div>`;
             }).join('');
         }
 
@@ -158,21 +188,17 @@ async function renderAdminTable() {
     }).join('');
 }
 
-// ---------- 刪除單筆申請 ----------
+// ---------- 處理使用者的申請 ----------
 async function deleteRequest(recordId, reqIndex) {
     if (!confirm('確定要刪除這筆使用者的換卡申請嗎？')) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
     if (fetchError || !record) { showToast('❌ 找不到該筆資料'); return; }
-
     let requests = record.requests || [];
-    requests.splice(reqIndex, 1); // 移除該索引的申請
-
+    requests.splice(reqIndex, 1);
     const { error: updateError } = await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
-    if (updateError) { showToast('❌ 刪除失敗'); } 
-    else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); }
+    if (updateError) { showToast('❌ 刪除失敗'); } else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); calculateStorageUsage(); }
 }
 
-// ---------- 核准與拒絕 ----------
 async function approveRequest(recordId, reqIndex) {
     const { data: record } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
     if (!record) return;
@@ -204,20 +230,16 @@ async function handleQslImageUpload(recordId, type, event) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
-    // 上傳到 Storage 的 qsl-images 桶子
     const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
-    if (uploadError) { showToast('❌ 圖片上傳失敗，請確認 Storage 權限'); event.target.value=''; return; }
+    if (uploadError) { showToast('❌ 圖片上傳失敗'); event.target.value=''; return; }
 
-    // 取得公開網址
     const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
-
-    // 把網址寫入資料庫
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
 
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     if (dbError) { showToast('❌ 資料庫更新失敗'); } 
-    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); }
+    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); calculateStorageUsage(); }
     event.target.value = '';
 }
 
@@ -269,7 +291,7 @@ async function uploadADIF() {
             const { error } = await _supabase.from('qsl_records').insert(newRecords);
             btnUploadADIF.disabled = false; btnUploadADIF.textContent = '上傳並匯入';
             showToast(error ? '❌ 匯入失敗' : `✅ 成功匯入 ${newRecords.length} 筆紀錄`);
-            if(!error) renderAdminTable();
+            if(!error) { renderAdminTable(); calculateStorageUsage(); }
         } else { showToast('⚠️ 無有效資料'); }
         document.getElementById('adifFile').value = ''; document.getElementById('adifFileNameDisplay').textContent = ''; selectedAdifFile = null;
     };
@@ -294,7 +316,7 @@ async function addManualRecord() {
         showToast(`✅ 已新增 ${call}`);
         document.getElementById('manualDate').value = ''; document.getElementById('manualCall').value = '';
         document.getElementById('manualBand').value = ''; document.getElementById('manualMode').value = ''; document.getElementById('manualNote').value = '';
-        renderAdminTable();
+        renderAdminTable(); calculateStorageUsage();
     }
 }
 
@@ -310,7 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
     
-    // 燈箱關閉
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
