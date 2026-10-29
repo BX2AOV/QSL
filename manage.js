@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (自動判斷完成與30天計時)
+   manage.js - 管理員後台完整邏輯 (移除寄出天數顯示)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -237,6 +237,7 @@ async function renderAdminTable() {
         const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
         
         let sentReminderHtml = '';
+        // 🌟 只有滿 30 天才顯示橘色提醒，移除寄出天數顯示
         if (r.sentImg && r.sentDate) {
             const days = getDaysSince(r.sentDate);
             if (days >= 30) {
@@ -244,14 +245,10 @@ async function renderAdminTable() {
                 <div style="font-size:0.75rem; color:#b45f06; background:#fff0d9; padding:4px 8px; border-radius:6px; margin-top:6px; display:inline-block; font-weight:bold; border:1px solid #fce4c2;">
                     ⏰ 已寄出 ${days} 天，請聯繫確認對方是否收到
                 </div>`;
-            } else {
-                sentReminderHtml = `<div style="font-size:0.7rem; color:#7e96af; margin-top:4px;">寄出天數：${days} 天</div>`;
             }
-        } else if (r.sentImg && !r.sentDate) {
-            sentReminderHtml = `<div style="font-size:0.7rem; color:#a0b2c6; margin-top:4px;">無寄出時間紀錄</div>`;
         }
 
-        // 🌟 如果狀態是完成，顯示完成日期與即將刪除的提示
+        // 如果狀態是完成，顯示完成日期與即將刪除的提示
         if (r.status === 'completed' && r.completedDate) {
             const daysSinceComplete = getDaysSince(r.completedDate);
             const daysLeft = 30 - daysSinceComplete;
@@ -351,7 +348,7 @@ async function deleteQslImage(recordId, type) {
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
     if (type === 'sent') updateData.sentDate = null;
     
-    // 🌟 如果刪除了圖片，狀態也要跟著退回，取消 completedDate
+    // 如果刪除了圖片，狀態也要跟著退回，取消 completedDate
     const currentRecord = allRecords.find(r => r.id === recordId);
     if (currentRecord) {
         if (type === 'received' && currentRecord.status === 'completed') {
