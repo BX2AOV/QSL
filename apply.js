@@ -1,3 +1,8 @@
+/* ============================================================
+   apply.html 專用邏輯：查詢通聯 → 填收件資訊 → 送出申請
+   包含記憶使用者呼號功能
+   ============================================================ */
+
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -23,10 +28,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedCountHint = document.getElementById('selectedCountHint');
     const btnSubmit = document.getElementById('btnSubmitApplication');
 
+    // 檢查是否有記住的呼號
+    const savedCall = localStorage.getItem('user_callsign');
+    if (savedCall) {
+        queryInput.value = savedCall;
+        // 自動執行查詢
+        setTimeout(() => doQuery(), 100);
+    }
+
     async function doQuery() {
         const call = queryInput.value.trim().toUpperCase();
         if (!call) { showToast('請輸入呼號'); return; }
+        
         queryCallsign = call;
+        // 記住使用者的呼號
+        localStorage.setItem('user_callsign', queryCallsign);
+        
         queryHint.innerHTML = '<span style="color:#5a6e85;">⏳ 查詢中...</span>';
 
         const { data, error } = await _supabase.from('qsl_records').select('*').eq('call', call);
@@ -49,7 +66,14 @@ document.addEventListener('DOMContentLoaded', function() {
         renderQueryResult();
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
-        queryResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // 只有在手動點擊查詢時才滾動，自動載入時不滾動
+        if (document.activeElement === btnQuery) {
+            queryResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 無論如何都顯示歷史申請紀錄
+        renderMyRequests();
     }
 
     function renderQueryResult() {
@@ -167,5 +191,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnQuery.addEventListener('click', doQuery);
     queryInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); doQuery(); } });
-    renderMyRequests();
 });
