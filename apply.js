@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯
+   apply.js - 申請頁面專用邏輯 (支援自訂國碼與無需手機)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -18,21 +18,18 @@ window.changeLang = function(lang) {
 };
 
 function applyLanguage() {
-    // 1. 切換文字
     document.querySelectorAll('[data-zh]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}`)) {
             el.textContent = el.getAttribute(`data-${currentLang}`);
         }
     });
 
-    // 2. 切換 Placeholder
     document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}-placeholder`)) {
             el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
         }
     });
 
-    // 3. 翻譯「無需提供」按鈕
     const btnNoPhone = document.getElementById('btnNoPhone');
     if (btnNoPhone) {
         const isCancelled = btnNoPhone.getAttribute('data-active') === 'true';
@@ -45,15 +42,12 @@ function applyLanguage() {
         btnNoPhone.textContent = noPhoneText[currentLang];
     }
 
-    // 4. 驅動滑塊位置
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
 
-    // 5. 更新 HTML lang
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 6. 如果有申請紀錄，重新渲染
     if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
         renderMyRequests();
     }
@@ -98,6 +92,23 @@ function computeQslStatus(r) {
     return { cls: 'badge-none', text: t[lang].none };
 }
 
+// 🌟 國碼自訂選單邏輯
+let currentCountryCode = '+886';
+
+window.selectCountry = function(code) {
+    currentCountryCode = code;
+    document.getElementById('selectedCountryCode').textContent = code;
+    document.getElementById('countryCodeWrapper').classList.remove('open');
+};
+
+// 點擊外部關閉選單
+document.addEventListener('click', function(e) {
+    const wrapper = document.getElementById('countryCodeWrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        wrapper.classList.remove('open');
+    }
+});
+
 // ============================================================
 // 主邏輯 (查詢與送出)
 // ============================================================
@@ -120,40 +131,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnSubmit = document.getElementById('btnSubmitApplication');
     
     const shipPhone = document.getElementById('shipPhone');
-    const shipCountryCode = document.getElementById('shipCountryCode');
     const btnNoPhone = document.getElementById('btnNoPhone');
     const phoneReq = document.getElementById('phoneReq');
+    const countryCodeWrapper = document.getElementById('countryCodeWrapper');
+    const countryCodeTrigger = document.getElementById('countryCodeTrigger');
 
     applyLanguage();
+
+    // 綁定自訂國碼選單的展開事件
+    if (countryCodeTrigger) {
+        countryCodeTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            countryCodeWrapper.classList.toggle('open');
+        });
+    }
 
     // 點擊「無需提供」的邏輯
     if (btnNoPhone) {
         btnNoPhone.addEventListener('click', function() {
             isPhoneDisabled = !isPhoneDisabled;
             if (isPhoneDisabled) {
-                // 隱藏手機與國碼
                 shipPhone.style.display = 'none';
-                shipCountryCode.style.display = 'none';
+                countryCodeWrapper.style.display = 'none';
                 phoneReq.style.display = 'none';
                 
-                // 按鈕變黑底白字
                 btnNoPhone.style.background = '#0b2a4a';
                 btnNoPhone.style.color = '#fff';
                 btnNoPhone.style.borderColor = '#0b2a4a';
                 btnNoPhone.setAttribute('data-active', 'true');
             } else {
-                // 恢復手機與國碼
                 shipPhone.style.display = 'block';
-                shipCountryCode.style.display = 'block';
+                countryCodeWrapper.style.display = 'block';
                 phoneReq.style.display = 'inline';
                 
-                // 按鈕恢復白底黑字
                 btnNoPhone.style.background = '';
                 btnNoPhone.style.color = '';
                 btnNoPhone.style.borderColor = '#cbdae8';
                 btnNoPhone.removeAttribute('data-active');
             }
-            applyLanguage(); // 更新按鈕文字
+            applyLanguage();
         });
     }
 
@@ -274,12 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const name = document.getElementById('shipName').value.trim();
             const rawPhone = shipPhone.value.trim();
-            const countryCode = shipCountryCode.value;
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
 
-            let finalPhone = isPhoneDisabled ? '未提供' : `${countryCode} ${rawPhone}`;
+            let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
 
             const errorMsg = { zh: '請填寫完整收件資訊', cn: '请填写完整收件信息', en: 'Please fill in all required fields.', ja: '必須項目を入力してください。' };
             if (!name || !zip || !address) { showToast(errorMsg[currentLang]); return; }
