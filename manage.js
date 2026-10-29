@@ -14,8 +14,8 @@ const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 let selectedAdifFile = null;
 
-// 紀錄目前網頁載入的時間
-const currentLoadTime = new Date().getTime();
+// 紀錄網頁載入的時間
+const pageLoadTime = new Date();
 
 // 共用工具
 function showToast(msg) { 
@@ -92,28 +92,27 @@ async function checkUpdate() {
     const statusEl = document.getElementById('updateStatus');
     const btn = document.getElementById('btnCheckUpdate');
     
-    statusEl.innerHTML = '⏳ 正在檢查 Cloudflare 最新版本...';
+    statusEl.innerHTML = '⏳ 正在向 Cloudflare 檢查最新版本...';
     btn.disabled = true;
 
     try {
-        // 加上時間戳記，強制繞過 CF 快取，抓取伺服器上最新的 manage.html
-        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { cache: 'no-store' });
-        const text = await response.text();
+        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { method: 'HEAD', cache: 'no-store' });
+        const lastModifiedHeader = response.headers.get('last-modified');
         
-        // 這裡用一個簡單的判斷：比對檔案長度或特徵
-        // 如果你有在 HTML 裡面寫版本號，也可以抓取特定字串
-        // 為了簡化，我們檢查檔案長度是否與當前不同
-        const currentHtmlLength = document.documentElement.outerHTML.length;
-        
-        if (text.length !== currentHtmlLength) {
-            statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案已更新。<br>請按下重新整理 (Ctrl+F5) 載入最新畫面。`;
-            statusEl.style.color = '#0e6b3e';
+        if (lastModifiedHeader) {
+            const serverTime = new Date(lastModifiedHeader);
+            if (serverTime.getTime() > pageLoadTime.getTime() + 2000) {
+                statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器已更新 (${serverTime.toLocaleTimeString()})。<br>請重新整理載入最新畫面。`;
+                statusEl.style.color = '#0e6b3e';
+            } else {
+                statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 快取尚未更新。`;
+                statusEl.style.color = '#5a6e85';
+            }
         } else {
-            statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 尚未發布新更新，或快取還未過期。`;
+            statusEl.innerHTML = `ℹ️ 無法取得時間標頭，請手動按 F5 測試。`;
             statusEl.style.color = '#5a6e85';
         }
     } catch (error) {
-        console.error('檢查更新失敗', error);
         statusEl.innerHTML = '❌ 檢查失敗，請確認網路連線。';
         statusEl.style.color = '#b03030';
     }
@@ -122,7 +121,7 @@ async function checkUpdate() {
 }
 
 // ============================================================
-// 雲端空間監測 (估算)
+// 雲端空間監測 (改用資料庫統計，避開 Supabase Storage 快取幽靈)
 // ============================================================
 async function calculateStorageUsage() {
     const dbBar = document.getElementById('dbUsageBar');
@@ -134,29 +133,38 @@ async function calculateStorageUsage() {
     try {
         const { data: allRecords, error } = await _supabase.from('qsl_records').select('*');
         if (!error && allRecords) {
+            // 1. 計算資料庫文字大小
             const jsonString = JSON.stringify(allRecords);
             const bytes = new Blob([jsonString]).size;
             const mb = bytes / (1024 * 1024);
             const percent = Math.min((mb / 500) * 100, 100);
             dbBar.style.width = `${Math.max(percent, 0.5)}%`;
             dbText.textContent = `${mb.toFixed(2)} MB / 500 MB (約 ${percent.toFixed(2)}%)`;
-        }
-    } catch (e) { dbText.textContent = '無法估算'; }
 
-    try {
-        const { data: files, error: storageError } = await _supabase.storage.from('qsl-images').list();
-        if (!storageError && files) {
-            let totalBytes = 0;
-            files.forEach(file => {
-                if (file.metadata && file.metadata.size) totalBytes += file.metadata.size;
+            // 2. 計算圖片 (改由資料庫紀錄來計算，防呆避開 Storage API 快取)
+            let imgCount = 0;
+            allRecords.forEach(r => {
+                if (r.receivedImg && r.receivedImg.trim() !== '') imgCount++;
+                if (r.sentImg && r.sentImg.trim() !== '') imgCount++;
             });
-            const mb = totalBytes / (1024 * 1024);
-            const percent = Math.min((mb / 1000) * 100, 100);
-            stBar.style.width = `${Math.max(percent, 0.5)}%`;
-            stText.textContent = `${mb.toFixed(2)} MB / 1000 MB (約 ${percent.toFixed(2)}%)`;
-            if (totalBytes === 0 && files.length > 0) stText.textContent = `共有 ${files.length} 張圖片 (無法取得大小)`;
+
+            // 因為我們不知道精確大小，用「張數」來估算（假設每張 150KB）
+            const estimatedBytes = imgCount * 150 * 1024;
+            const estMb = estimatedBytes / (1024 * 1024);
+            const estPercent = Math.min((estMb / 1000) * 100, 100);
+            
+            stBar.style.width = `${Math.max(estPercent, 0.5)}%`;
+            
+            if (imgCount === 0) {
+                stText.textContent = `0.00 MB / 1000 MB (約 0.00%)`;
+            } else {
+                stText.textContent = `已連結 ${imgCount} 張圖片 (估算約 ${estMb.toFixed(2)} MB)`;
+            }
         }
-    } catch (e) { stText.textContent = '無法估算'; }
+    } catch (e) { 
+        dbText.textContent = '無法估算'; 
+        stText.textContent = '無法估算';
+    }
 }
 
 // ============================================================
@@ -379,8 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
-    
-    // 新增：檢查更新按鈕綁定
     document.getElementById('btnCheckUpdate')?.addEventListener('click', checkUpdate);
 
     const lb = document.getElementById('lightbox');
