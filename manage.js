@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (支援狀態編輯與多次選取)
+   manage.js - 管理員後台完整邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -15,7 +15,6 @@ const manageTableBody = document.getElementById('manageTableBody');
 
 let selectedFilesArray = [];
 
-// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -39,7 +38,6 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// 衛星與顯示判斷
 function getDisplayInfo(r) {
     let displayBand = r.band;
     let displayMode = r.mode;
@@ -200,7 +198,7 @@ async function renderAdminTable() {
                 ${sentBtnHtml}
             </div>`;
 
-        // 👇 這裡是狀態下拉選單 👇
+        // 👇 新增「已交換完成」選項 👇
         const currentStatus = r.status || 'none';
         const statusSelect = `
             <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid #cbdae8; font-size:0.85rem; background:#fff; cursor:pointer; outline:none;">
@@ -209,6 +207,7 @@ async function renderAdminTable() {
                 <option value="received_paper" ${currentStatus === 'received_paper' ? 'selected' : ''}>已收到紙卡</option>
                 <option value="received_eqsl" ${currentStatus === 'received_eqsl' ? 'selected' : ''}>已收到電子卡</option>
                 <option value="sent" ${currentStatus === 'sent' ? 'selected' : ''}>已發出紙卡</option>
+                <option value="completed" ${currentStatus === 'completed' ? 'selected' : ''}>✅ 已交換完成</option>
                 <option value="not_needed" ${currentStatus === 'not_needed' ? 'selected' : ''}>無需換卡</option>
             </select>
         `;
@@ -229,7 +228,6 @@ async function renderAdminTable() {
     }).join('');
 }
 
-// 修改狀態的函式
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
