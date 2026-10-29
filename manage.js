@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯
+   manage.js - 管理員後台完整邏輯 (支援手機分次選取)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -13,10 +13,9 @@ const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 
-// 改用陣列來儲存多次選取的檔案
-let selectedAdifFiles = [];
+// 🌟 這是關鍵：用來儲存你分次點擊選取的檔案
+let selectedFilesArray = [];
 
-// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -40,7 +39,6 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// 解析顯示用的頻段與模式 (衛星判斷)
 function getDisplayInfo(r) {
     let displayBand = r.band;
     let displayMode = r.mode;
@@ -216,52 +214,31 @@ async function renderAdminTable() {
     }).join('');
 }
 
-// ---------- 刪除整筆通聯紀錄 ----------
 async function deleteRecord(recordId) {
     if (!confirm('⚠️ 警告：您確定要刪除這筆通聯紀錄嗎？\n這將會連同該筆的所有申請資料一起刪除！')) return;
-
     showToast('⏳ 正在刪除...');
     const { error } = await _supabase.from('qsl_records').delete().eq('id', recordId);
-
-    if (error) {
-        showToast('❌ 刪除失敗：' + error.message);
-    } else {
-        showToast('🗑️ 已成功刪除該筆通聯紀錄');
-        renderAdminTable();
-        calculateStorageUsage();
-    }
+    if (error) { showToast('❌ 刪除失敗：' + error.message); } 
+    else { showToast('🗑️ 已成功刪除該筆通聯紀錄'); renderAdminTable(); calculateStorageUsage(); }
 }
 
-// ---------- 刪除單筆圖片 ----------
 async function deleteQslImage(recordId, type) {
     if (!confirm(`確定要刪除這張「${type === 'received' ? '收到' : '發出'}」的 QSL 圖片嗎？`)) return;
-
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('receivedImg, sentImg').eq('id', recordId).single();
     if (fetchError || !record) { showToast('❌ 找不到紀錄'); return; }
-
     const imgUrl = type === 'received' ? record.receivedImg : record.sentImg;
     if (!imgUrl) return;
-
     try {
         const fileName = imgUrl.split('/').pop();
         if (fileName) await _supabase.storage.from('qsl-images').remove([fileName]);
     } catch (e) { console.error('Storage 刪除失敗:', e); }
-
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
-
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
-
-    if (dbError) {
-        showToast('❌ 刪除失敗');
-    } else {
-        showToast('🗑️ 圖片已刪除');
-        renderAdminTable();
-        calculateStorageUsage();
-    }
+    if (dbError) { showToast('❌ 刪除失敗'); } 
+    else { showToast('🗑️ 圖片已刪除'); renderAdminTable(); calculateStorageUsage(); }
 }
 
-// ---------- 處理使用者的申請 ----------
 async function deleteRequest(recordId, reqIndex) {
     if (!confirm('確定要刪除這筆使用者的換卡申請嗎？')) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
@@ -290,9 +267,6 @@ async function rejectRequest(recordId, reqIndex) {
     showToast('已拒絕申請'); renderAdminTable();
 }
 
-// ============================================================
-// 圖片上傳到 Supabase Storage
-// ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -304,49 +278,46 @@ async function handleQslImageUpload(recordId, type, event) {
     const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
     const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
-    if (uploadError) { 
-        console.error("Storage上傳失敗:", uploadError);
-        showToast('❌ 圖片上傳失敗: ' + uploadError.message); 
-        event.target.value=''; 
-        return; 
-    }
+    if (uploadError) { showToast('❌ 圖片上傳失敗: ' + uploadError.message); event.target.value=''; return; }
 
     const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
 
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
-    
-    if (dbError) { 
-        console.error("資料庫更新失敗詳情:", dbError);
-        showToast('❌ 資料庫更新失敗: ' + dbError.message); 
-    } 
-    else { 
-        showToast('✅ 圖片上傳成功'); 
-        renderAdminTable(); 
-        calculateStorageUsage(); 
-    }
+    if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
+    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); calculateStorageUsage(); }
     event.target.value = '';
 }
 
 // ============================================================
-// ADIF 上傳與手動新增
+// 🌟 核心修改：ADIF 分次選取邏輯
 // ============================================================
 
-// 修改：允許手機分次選取，累積在陣列中
+// 1. 點擊選取檔案時，把檔案塞進陣列，而不是覆蓋
 function handleAdifSelect(event) {
     const files = event.target.files;
     if (files && files.length > 0) {
         for (let i = 0; i < files.length; i++) {
-            // 避免重複加入同一個檔案
-            if (!selectedAdifFiles.some(f => f.name === files[i].name)) {
-                selectedAdifFiles.push(files[i]);
+            // 檢查是否重複（用檔名+大小判斷）
+            const isDuplicate = selectedFilesArray.some(f => f.name === files[i].name && f.size === files[i].size);
+            if (!isDuplicate) {
+                selectedFilesArray.push(files[i]);
             }
         }
-        document.getElementById('adifFileNameDisplay').textContent = `已選擇 ${selectedAdifFiles.length} 個檔案`;
+        // 更新畫面文字，顯示目前選了幾個
+        document.getElementById('adifFileNameDisplay').textContent = `已選擇 ${selectedFilesArray.length} 個檔案，可繼續點擊選取。`;
+        document.getElementById('btnClearFiles').style.display = 'block'; // 顯示清除按鈕
     }
-    // 清空 input，這樣下次點擊才可以選同一個檔案
+    // 清空 input 的 value，這樣下次點擊同一個檔案才會觸發 onchange
     event.target.value = '';
+}
+
+// 2. 清除已選取的檔案
+function clearSelectedFiles() {
+    selectedFilesArray = [];
+    document.getElementById('adifFileNameDisplay').textContent = '';
+    document.getElementById('btnClearFiles').style.display = 'none';
 }
 
 function parseADIF(content) {
@@ -365,12 +336,8 @@ function parseADIF(content) {
         if (fieldName === 'EOR') { 
             if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } 
         } 
-        else if (fieldName === 'QSO_DATE') { 
-            let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; 
-        } 
-        else if (fieldName === 'TIME_ON') {
-            let t = value; if (t.length >= 4) t = `${t.slice(0,2)}:${t.slice(2,4)}`; current.time = t;
-        }
+        else if (fieldName === 'QSO_DATE') { let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; } 
+        else if (fieldName === 'TIME_ON') { let t = value; if (t.length >= 4) t = `${t.slice(0,2)}:${t.slice(2,4)}`; current.time = t; }
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
@@ -381,30 +348,27 @@ function parseADIF(content) {
     return records;
 }
 
-// 修改：迴圈讀取所有選取的檔案
+// 3. 上傳時迴圈處理陣列裡的所有檔案
 async function uploadADIF() {
-    if (selectedAdifFiles.length === 0) { showToast('請先選擇 ADIF 檔案'); return; }
+    if (selectedFilesArray.length === 0) { showToast('請先選擇 ADIF 檔案'); return; }
     const btnUploadADIF = document.getElementById('btnUploadADIF');
     
     btnUploadADIF.disabled = true; 
-    btnUploadADIF.textContent = `⏳ 讀取檔案中...`;
+    btnUploadADIF.textContent = `⏳ 讀取中...`;
 
     let allNewRecords = [];
-    let processedFilesCount = 0;
+    let processed = 0;
 
-    // 使用 Promise 確保所有檔案都讀取完畢
-    const readFilesPromises = selectedAdifFiles.map(file => {
+    // 用 Promise 確保所有檔案都讀取完畢
+    const readPromises = selectedFilesArray.map(file => {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const parsed = parseADIF(e.target.result);
                 for (const p of parsed) {
                     if (!p.call) continue;
-                    
                     let noteStr = p.note || '';
-                    if (p.satName) {
-                        noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
-                    }
+                    if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
 
                     allNewRecords.push({ 
                         date: p.date || '—', 
@@ -416,38 +380,31 @@ async function uploadADIF() {
                         requests: [] 
                     });
                 }
-                processedFilesCount++;
-                btnUploadADIF.textContent = `⏳ 讀取中 (${processedFilesCount}/${selectedAdifFiles.length})...`;
+                processed++;
+                btnUploadADIF.textContent = `⏳ 讀取中 (${processed}/${selectedFilesArray.length})...`;
                 resolve();
             };
             reader.readAsText(file);
         });
     });
 
-    await Promise.all(readFilesPromises);
+    await Promise.all(readPromises);
 
     if (allNewRecords.length > 0) {
         btnUploadADIF.textContent = `⏳ 寫入資料庫中...`;
-        // 一次把所有的紀錄寫入資料庫
         const { error } = await _supabase.from('qsl_records').insert(allNewRecords);
         
-        if (error) {
-            showToast('❌ 匯入失敗');
-        } else {
-            showToast(`✅ 成功從 ${selectedAdifFiles.length} 個檔案匯入 ${allNewRecords.length} 筆紀錄`);
-            renderAdminTable(); 
-            calculateStorageUsage();
+        if (error) { showToast('❌ 匯入失敗'); } 
+        else { 
+            showToast(`✅ 成功從 ${selectedFilesArray.length} 個檔案匯入 ${allNewRecords.length} 筆紀錄`);
+            renderAdminTable(); calculateStorageUsage();
         }
-    } else { 
-        showToast('⚠️ 無有效資料'); 
-    }
+    } else { showToast('⚠️ 無有效資料'); }
 
-    // 重置狀態
+    // 重置
     btnUploadADIF.disabled = false; 
-    btnUploadADIF.textContent = '上傳並匯入';
-    document.getElementById('adifFile').value = ''; 
-    document.getElementById('adifFileNameDisplay').textContent = ''; 
-    selectedAdifFiles = [];
+    btnUploadADIF.textContent = '全部上傳並匯入';
+    clearSelectedFiles();
 }
 
 async function addManualRecord() {
@@ -488,8 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogin?.addEventListener('click', login);
     btnLogout?.addEventListener('click', logout);
     document.getElementById('adminPassword')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
+    
+    // 綁定 ADIF 選取與上傳、清除
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
+    document.getElementById('btnClearFiles')?.addEventListener('click', clearSelectedFiles);
+    
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
     const lb = document.getElementById('lightbox');
