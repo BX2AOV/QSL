@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯
+   script.js - 首頁（總覽）專用邏輯 (包含搜尋與分頁)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -9,6 +9,10 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let qslRecords = [];
 let filteredRecords = []; 
 let currentLang = localStorage.getItem('site_lang') || 'zh'; 
+
+// 🌟 分頁專用變數
+let currentPage = 1;
+const itemsPerPage = 10;
 
 // ============================================================
 // 語言切換核心邏輯
@@ -58,7 +62,7 @@ function computeQslStatus(r) {
     if (r.status === 'not_needed') return { cls: 'badge-not-needed', text: t[lang].not_needed }; 
     if (r.status === 'received_paper') return { cls: 'badge-received', text: t[lang].paper };
     if (r.status === 'sent') return { cls: 'badge-sent', text: t[lang].sent };
-    if (r.status === 'pending') return { cls: 'badge-pending', text: t[lang].pending };
+    if (r.status === 'pending') return { cls: 'badge-pending', text: t[lang].text };
 
     if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: t[lang].both };
     if (r.receivedImg) return { cls: 'badge-received', text: t[lang].rcvd };
@@ -96,7 +100,6 @@ async function fetchData() {
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
 
-    // 🌟 背景觸發清理機制
     _supabase.functions.invoke('clever-responder').then(({ data, error }) => {
         if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
             console.log("🧹 背景清理通知：", data.message);
@@ -113,6 +116,7 @@ async function fetchData() {
 
     qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
     filteredRecords = [...qslRecords]; 
+    currentPage = 1; // 載入新資料時重置到第一頁
     renderMainTable();
 }
 
@@ -120,19 +124,27 @@ function renderMainTable() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
-    // 過濾掉「無需換卡」的紀錄
     const recordsToShow = filteredRecords.filter(r => r.status !== 'not_needed');
 
     if (recordsToShow.length === 0) {
         const emptyText = { zh: '📭 目前沒有通聯紀錄', cn: '📭 目前没有通联记录', en: '📭 No QSO records found', ja: '📭 交信記録がありません' };
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
+        updatePagination(0, 1); // 隱藏分頁
         return;
     }
+
+    // 🌟 計算分頁範圍
+    const totalPages = Math.ceil(recordsToShow.length / itemsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
     
-    tbody.innerHTML = recordsToShow.map(r => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedRecords = recordsToShow.slice(startIndex, endIndex);
+
+    tbody.innerHTML = paginatedRecords.map(r => {
         const st = computeQslStatus(r);
         
-        // 沒有圖片就留白
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
         
@@ -142,28 +154,24 @@ function renderMainTable() {
         let displayTime = r.time || '—';
 
         if (r.note) {
-            // 抓取時間
             const timeMatch = r.note.match(/\[([0-9]{2}:[0-9]{2})\]/);
             if (timeMatch && timeMatch[1]) {
                 if (!r.time || r.time === '—') displayTime = timeMatch[1];
                 displayNote = displayNote.replace(/\[([0-9]{2}:[0-9]{2})\]\s*/, '');
             }
 
-            // 抓取衛星名稱，有衛星就顯示衛星名稱
             const satMatch = r.note.match(/^\[(.*?)\]/);
             if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
                 displayBand = satMatch[1]; 
                 displayMode = 'SAT';       
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             } else {
-                // 如果沒有衛星，但有頻率，就把頻段換成頻率
                 const freqMatch = r.note.match(/FREQ:([\d.]+)/);
                 if (freqMatch && freqMatch[1]) {
                     displayBand = freqMatch[1]; 
                 }
             }
             
-            // 翻譯備註並隱藏技術字眼
             const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
             displayNote = displayNote.replace('[LoTW]', 'LoTW ');
@@ -182,6 +190,56 @@ function renderMainTable() {
             <td>${escapeHtml(displayNote)}</td>
         </tr>`;
     }).join('');
+
+    // 🌟 更新分頁按鈕
+    updatePagination(recordsToShow.length, totalPages);
+}
+
+// 🌟 動態生成分頁按鈕
+function updatePagination(totalItems, totalPages) {
+    let paginationContainer = document.getElementById('paginationContainer');
+    
+    // 如果沒有容器，就動態創建一個放在表格下面
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'paginationContainer';
+        paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
+        
+        const tableWrapper = document.querySelector('.table-wrapper');
+        if (tableWrapper) {
+            tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
+        }
+    }
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
+    const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
+
+    paginationContainer.innerHTML = `
+        <button id="btnPrevPage" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
+        <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">第 ${currentPage} / ${totalPages} 頁</span>
+        <button id="btnNextPage" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
+    `;
+
+    document.getElementById('btnPrevPage').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderMainTable();
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    document.getElementById('btnNextPage').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderMainTable();
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -198,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
             }
+            currentPage = 1; // 搜尋時重置到第一頁
             renderMainTable();
         });
     }
