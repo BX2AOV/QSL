@@ -29,7 +29,6 @@
                     <span class="lang-option" data-lang="en" onclick="changeLang('en')">EN</span>
                     <span class="lang-option" data-lang="ja" onclick="changeLang('ja')">日</span>
                 </div>
-
                 <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
                     <span class="role-badge" data-zh="訪客" data-cn="访客" data-en="Guest" data-ja="ゲスト">訪客</span>
                 </div>
@@ -43,7 +42,6 @@
                     <div class="card-sub" style="margin-bottom: 0;" data-zh="點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。" data-cn="点击缩略图可放大查看 QSL 卡图片。表格时间均为 UTC 世界标准时间。" data-en="Click on thumbnails to enlarge QSL images. All times in the table are UTC." data-ja="サムネイルをクリックするとQSLカード画像が拡大されます。表内の時刻はすべてUTC（協定世界時）です。">點擊縮圖可放大檢視 QSL 卡圖片。表格時間均為 UTC 世界標準時間。</div>
                 </div>
                 
-                <!-- 👇 搜尋框 👇 -->
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;" data-zh-placeholder="搜尋呼號 (例: AOV)" data-cn-placeholder="搜索呼号 (例: AOV)" data-en-placeholder="Search Callsign (e.g. AOV)" data-ja-placeholder="コールサインを検索 (例: AOV)">
                 </div>
@@ -58,8 +56,9 @@
                             <th data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
                             <th data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
                             <th data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
-                            <th data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受信 QSL">收到 QSL</th>
-                            <th data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="発信 QSL">發出 QSL</th>
+                            <!-- 👇 日文改為受領與送付 👇 -->
+                            <th data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受領 QSL">收到 QSL</th>
+                            <th data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="送付 QSL">發出 QSL</th>
                             <th data-zh="狀態" data-cn="状态" data-en="Status" data-ja="ステータス">狀態</th>
                             <th data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
                         </tr>
