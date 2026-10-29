@@ -217,7 +217,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-            min-width: 700px;
+            min-width: 900px;
         }
 
         th {
@@ -372,6 +372,111 @@
             gap: 16px;
         }
 
+        /* QSL 圖片預覽 */
+        .qsl-thumb {
+            width: 60px;
+            height: 42px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #dbe7f3;
+            cursor: pointer;
+            transition: 0.15s;
+            background: #f4f9ff;
+        }
+
+        .qsl-thumb:hover {
+            transform: scale(1.05);
+            border-color: #0066cc;
+        }
+
+        .qsl-thumb-empty {
+            width: 60px;
+            height: 42px;
+            border-radius: 8px;
+            border: 1px dashed #cbdae8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b8cee4;
+            font-size: 1.2rem;
+            background: #fbfdff;
+        }
+
+        .img-cell {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        /* 管理員上傳按鈕群組 */
+        .upload-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .upload-btns label {
+            cursor: pointer;
+            padding: 7px 14px;
+            border-radius: 40px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid #b8cee4;
+            background: white;
+            transition: 0.15s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .upload-btns label:hover {
+            background: #eef6ff;
+            border-color: #7aa9d9;
+        }
+
+        .upload-btns input[type="file"] {
+            display: none;
+        }
+
+        /* 燈箱 */
+        .lightbox {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 24px;
+        }
+
+        .lightbox.show {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 85vh;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            background: white;
+            padding: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 24px; right: 32px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .lightbox-close:hover {
+            opacity: 0.7;
+        }
+
         @media (max-width: 700px) {
             .header-bar {
                 border-radius: 32px;
@@ -404,7 +509,6 @@
             </div>
             <ul class="nav-links">
                 <li><a href="#" class="active" onclick="scrollToSection('dashboard')">總覽</a></li>
-                <li><a href="#" onclick="scrollToSection('upload-qsl')">上傳 QSL</a></li>
                 <li><a href="#" onclick="scrollToSection('admin-panel')">管理員</a></li>
             </ul>
             <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
@@ -415,14 +519,14 @@
         <!-- 登入區塊 -->
         <div class="card" id="loginCard">
             <h2>🔐 身份驗證</h2>
-            <div class="card-sub">一般用戶無需登入即可瀏覽；管理員請輸入密碼以管理通聯紀錄。</div>
+            <div class="card-sub">一般用戶無需登入即可瀏覽 QSL 卡狀態；管理員請輸入密碼以上傳紀錄與圖片。</div>
             <div class="login-area">
                 <input type="password" id="adminPassword" placeholder="管理員密碼（預設：admin123）" autocomplete="off">
                 <button class="btn btn-primary" onclick="loginAdmin()">登入管理員</button>
                 <button class="btn btn-outline" onclick="logoutAdmin()">登出</button>
             </div>
             <div style="margin-top:14px; font-size:0.85rem; color:#7e96af;">
-                💡 一般用戶可直接瀏覽下方通聯紀錄並上傳 QSL 申請，無需登入。
+                💡 一般用戶可瀏覽所有通聯紀錄與 QSL 圖片，無需登入。
             </div>
         </div>
 
@@ -430,8 +534,8 @@
         <div class="card" id="dashboard">
             <div class="flex-between">
                 <div>
-                    <h2>📋 通聯紀錄</h2>
-                    <div class="card-sub">所有已登錄的通聯資料，可供查詢與交換 QSL 卡。</div>
+                    <h2>📋 通聯紀錄與 QSL 狀態</h2>
+                    <div class="card-sub">點擊縮圖可放大檢視 QSL 卡圖片。</div>
                 </div>
                 <div id="adminHint" style="font-size:0.85rem; color:#7e96af;"></div>
             </div>
@@ -443,7 +547,9 @@
                             <th>呼號</th>
                             <th>頻段</th>
                             <th>模式</th>
-                            <th>QSL 狀態</th>
+                            <th>收到 QSL</th>
+                            <th>發出 QSL</th>
+                            <th>狀態</th>
                             <th>備註</th>
                         </tr>
                     </thead>
@@ -454,26 +560,10 @@
             </div>
         </div>
 
-        <!-- 上傳 QSL 區塊 -->
-        <div class="card" id="upload-qsl">
-            <h2>📤 上傳收到的 QSL 卡</h2>
-            <div class="card-sub">請上傳您收到的 QSL 卡圖檔或掃描檔（JPG / PNG / PDF），我們將在後台確認狀態。</div>
-            <div class="upload-zone">
-                <label for="qslFile" class="upload-label">選擇檔案</label>
-                <input type="file" id="qslFile" accept="image/*,.pdf" onchange="handleFileSelect(event)">
-                <div class="file-hint">支援 JPG、PNG、PDF，大小不超過 5MB（模擬上傳，不會實際儲存檔案）</div>
-                <div id="fileNameDisplay" class="file-name"></div>
-            </div>
-            <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="submitQSLUpload()">送出 QSL 申請</button>
-                <span style="font-size:0.85rem; color:#7e96af; align-self:center;">送出後狀態將顯示為「待處理」</span>
-            </div>
-        </div>
-
         <!-- 管理員專用：上傳通聯紀錄 -->
         <div class="card admin-section" id="admin-panel">
-            <h2>⚙️ 管理員專區 - 上傳通聯紀錄</h2>
-            <div class="card-sub">僅管理員可見。上傳 ADIF 或手動新增通聯紀錄，供用戶交換 QSL 卡片。</div>
+            <h2>⚙️ 管理員專區</h2>
+            <div class="card-sub">上傳 ADIF 通聯紀錄、手動新增，並為每筆紀錄上傳「收到」或「發出」的 QSL 卡圖片。</div>
             
             <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px;">
                 <div style="flex:1; min-width:200px;">
@@ -481,7 +571,7 @@
                     <div class="upload-zone" style="padding: 20px;">
                         <input type="file" id="adifFile" accept=".adi,.adif" onchange="handleAdifSelect(event)" style="display:none;">
                         <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
-                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式（業餘無線電標準通聯交換格式）</div>
+                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式</div>
                         <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
                     </div>
                     <button class="btn btn-primary" style="margin-top:12px;" onclick="uploadADIF()">上傳並匯入</button>
@@ -499,11 +589,11 @@
                 </div>
             </div>
 
-            <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有紀錄</h3>
+            <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有紀錄與 QSL 圖片</h3>
             <div style="overflow-x:auto; border-radius:20px; border:1px solid #e1eaf2;">
-                <table style="min-width:600px;">
+                <table style="min-width:900px;">
                     <thead>
-                        <tr><th>日期</th><th>呼號</th><th>頻段</th><th>模式</th><th>QSL狀態</th><th>操作</th></tr>
+                        <tr><th>日期</th><th>呼號</th><th>頻段</th><th>模式</th><th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>操作</th></tr>
                     </thead>
                     <tbody id="adminManageBody">
                         <!-- 動態產生 -->
@@ -517,41 +607,48 @@
         </div>
     </div>
 
+    <!-- 燈箱 -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+        <span class="lightbox-close" onclick="closeLightbox(event)">×</span>
+        <img id="lightboxImg" src="" alt="QSL 卡大圖">
+    </div>
+
     <!-- Toast 提示 -->
     <div id="toast" class="toast">操作成功</div>
 
     <script>
         // ---------- 資料儲存 ----------
-        const STORAGE_KEY = 'qsl_manager_data';
+        const STORAGE_KEY = 'qsl_manager_data_v2';
 
-        // 預設示範資料
+        // 預設示範資料（新增 receivedImg / sentImg 欄位，儲存 base64 圖片）
         const defaultRecords = [
-            { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', qslStatus: 'pending', note: '等待回卡' },
-            { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', qslStatus: 'received', note: '已收到紙卡' },
-            { id: 3, date: '2025-01-15', call: 'VK3DEF', band: '40m', mode: 'CW', qslStatus: 'sent', note: '已寄出' },
-            { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', qslStatus: 'pending', note: '透過 Bureau' },
-            { id: 5, date: '2025-01-20', call: 'BV2JKL', band: '2m', mode: 'FM', qslStatus: 'received', note: '本地交換' },
+            { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', qslStatus: 'pending', note: '等待回卡', receivedImg: null, sentImg: null },
+            { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', qslStatus: 'received', note: '已收到紙卡', receivedImg: null, sentImg: null },
+            { id: 3, date: '2025-01-15', call: 'VK3DEF', band: '40m', mode: 'CW', qslStatus: 'sent', note: '已寄出', receivedImg: null, sentImg: null },
+            { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', qslStatus: 'pending', note: '透過 Bureau', receivedImg: null, sentImg: null },
+            { id: 5, date: '2025-01-20', call: 'BV2JKL', band: '2m', mode: 'FM', qslStatus: 'received', note: '本地交換', receivedImg: null, sentImg: null },
         ];
 
-        // 讀取資料
         function loadData() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 try {
                     return JSON.parse(stored);
                 } catch (e) {
-                    return [...defaultRecords];
+                    return JSON.parse(JSON.stringify(defaultRecords));
                 }
             }
-            return [...defaultRecords];
+            return JSON.parse(JSON.stringify(defaultRecords));
         }
 
-        // 儲存資料
         function saveData(records) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            } catch (e) {
+                showToast('⚠️ 儲存空間不足，圖片可能過大');
+            }
         }
 
-        // 目前資料
         let qslRecords = loadData();
 
         // ---------- 管理員狀態 ----------
@@ -565,6 +662,8 @@
         const adminHint = document.getElementById('adminHint');
         const adminSection = document.getElementById('admin-panel');
         const toastEl = document.getElementById('toast');
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
 
         // ---------- 提示訊息 ----------
         function showToast(message) {
@@ -574,6 +673,19 @@
             window.toastTimer = setTimeout(() => {
                 toastEl.classList.remove('show');
             }, 2500);
+        }
+
+        // ---------- 燈箱 ----------
+        function openLightbox(src) {
+            if (!src) return;
+            lightboxImg.src = src;
+            lightbox.classList.add('show');
+        }
+
+        function closeLightbox(e) {
+            if (e) e.stopPropagation();
+            lightbox.classList.remove('show');
+            lightboxImg.src = '';
         }
 
         // ---------- 登入/登出 ----------
@@ -599,7 +711,7 @@
             if (isAdmin) {
                 loginStatus.innerHTML = '<span class="role-badge admin">管理員</span>';
                 adminSection.classList.add('visible');
-                adminHint.textContent = '✅ 管理模式：可上傳通聯紀錄';
+                adminHint.textContent = '✅ 管理模式：可上傳紀錄與 QSL 圖片';
             } else {
                 loginStatus.innerHTML = '<span class="role-badge">訪客</span>';
                 adminSection.classList.remove('visible');
@@ -608,50 +720,86 @@
             renderTables();
         }
 
-        // ---------- 渲染主表格 ----------
+        // ---------- 渲染表格 ----------
         function renderTables() {
-            if (qslRecords.length === 0) {
-                qsoTableBody.innerHTML = `<tr><td colspan="6"><div class="empty-state">📭 目前沒有通聯紀錄，請管理員上傳。</div></td></tr>`;
-            } else {
-                qsoTableBody.innerHTML = qslRecords.map(r => {
-                    let badgeClass = 'badge-pending';
-                    let statusText = '待處理';
-                    if (r.qslStatus === 'received') { badgeClass = 'badge-received'; statusText = '已收到'; }
-                    else if (r.qslStatus === 'sent') { badgeClass = 'badge-sent'; statusText = '已寄出'; }
-                    return `<tr>
-                        <td>${escapeHtml(r.date)}</td>
-                        <td><strong>${escapeHtml(r.call)}</strong></td>
-                        <td>${escapeHtml(r.band)}</td>
-                        <td>${escapeHtml(r.mode)}</td>
-                        <td><span class="${badgeClass}">${statusText}</span></td>
-                        <td>${escapeHtml(r.note || '—')}</td>
-                    </tr>`;
-                }).join('');
-            }
+            renderMainTable();
+            if (isAdmin) renderAdminTable();
+        }
 
-            if (isAdmin) {
-                if (qslRecords.length === 0) {
-                    adminManageBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#7e96af;">無紀錄</td></tr>`;
-                } else {
-                    adminManageBody.innerHTML = qslRecords.map(r => {
-                        let statusOptions = `
-                            <select onchange="updateStatus(${r.id}, this.value)" style="padding:8px 12px; border-radius:40px; border:1px solid #cbdae8; background:white; font-size:0.85rem;">
-                                <option value="pending" ${r.qslStatus === 'pending' ? 'selected' : ''}>待處理</option>
-                                <option value="received" ${r.qslStatus === 'received' ? 'selected' : ''}>已收到</option>
-                                <option value="sent" ${r.qslStatus === 'sent' ? 'selected' : ''}>已寄出</option>
-                            </select>
-                        `;
-                        return `<tr>
-                            <td>${escapeHtml(r.date)}</td>
-                            <td>${escapeHtml(r.call)}</td>
-                            <td>${escapeHtml(r.band)}</td>
-                            <td>${escapeHtml(r.mode)}</td>
-                            <td>${statusOptions}</td>
-                            <td><button class="btn btn-outline btn-sm" onclick="deleteRecord(${r.id})" style="padding:6px 14px; font-size:0.8rem;">刪除</button></td>
-                        </tr>`;
-                    }).join('');
-                }
+        function imgCellHtml(imgData, altText) {
+            if (imgData) {
+                return `<img src="${imgData}" class="qsl-thumb" alt="${altText}" onclick="openLightbox('${imgData.replace(/'/g, "\\'")}')">`;
             }
+            return `<div class="qsl-thumb-empty">—</div>`;
+        }
+
+        function renderMainTable() {
+            if (qslRecords.length === 0) {
+                qsoTableBody.innerHTML = `<tr><td colspan="8"><div class="empty-state">📭 目前沒有通聯紀錄，請管理員上傳。</div></td></tr>`;
+                return;
+            }
+            qsoTableBody.innerHTML = qslRecords.map(r => {
+                let badgeClass = 'badge-pending';
+                let statusText = '待處理';
+                if (r.qslStatus === 'received') { badgeClass = 'badge-received'; statusText = '已收到'; }
+                else if (r.qslStatus === 'sent') { badgeClass = 'badge-sent'; statusText = '已寄出'; }
+
+                return `<tr>
+                    <td>${escapeHtml(r.date)}</td>
+                    <td><strong>${escapeHtml(r.call)}</strong></td>
+                    <td>${escapeHtml(r.band)}</td>
+                    <td>${escapeHtml(r.mode)}</td>
+                    <td>${imgCellHtml(r.receivedImg, r.call + ' 收到 QSL')}</td>
+                    <td>${imgCellHtml(r.sentImg, r.call + ' 發出 QSL')}</td>
+                    <td><span class="${badgeClass}">${statusText}</span></td>
+                    <td>${escapeHtml(r.note || '—')}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderAdminTable() {
+            if (qslRecords.length === 0) {
+                adminManageBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#7e96af;">無紀錄</td></tr>`;
+                return;
+            }
+            adminManageBody.innerHTML = qslRecords.map(r => {
+                let statusOptions = `
+                    <select onchange="updateStatus(${r.id}, this.value)" style="padding:8px 12px; border-radius:40px; border:1px solid #cbdae8; background:white; font-size:0.85rem;">
+                        <option value="pending" ${r.qslStatus === 'pending' ? 'selected' : ''}>待處理</option>
+                        <option value="received" ${r.qslStatus === 'received' ? 'selected' : ''}>已收到</option>
+                        <option value="sent" ${r.qslStatus === 'sent' ? 'selected' : ''}>已寄出</option>
+                    </select>
+                `;
+
+                // 收到 QSL 上傳按鈕
+                let receivedUploadHtml = `
+                    <div class="upload-btns">
+                        <label for="recv-${r.id}">📥 上傳</label>
+                        <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
+                        ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;font-size:1.1rem;">—</span>'}
+                    </div>
+                `;
+
+                // 發出 QSL 上傳按鈕
+                let sentUploadHtml = `
+                    <div class="upload-btns">
+                        <label for="sent-${r.id}">📤 上傳</label>
+                        <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
+                        ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;font-size:1.1rem;">—</span>'}
+                    </div>
+                `;
+
+                return `<tr>
+                    <td>${escapeHtml(r.date)}</td>
+                    <td>${escapeHtml(r.call)}</td>
+                    <td>${escapeHtml(r.band)}</td>
+                    <td>${escapeHtml(r.mode)}</td>
+                    <td>${receivedUploadHtml}</td>
+                    <td>${sentUploadHtml}</td>
+                    <td>${statusOptions}</td>
+                    <td><button class="btn btn-outline btn-sm" onclick="deleteRecord(${r.id})" style="padding:6px 14px; font-size:0.8rem;">刪除</button></td>
+                </tr>`;
+            }).join('');
         }
 
         function escapeHtml(text) {
@@ -661,7 +809,51 @@
             return div.innerHTML;
         }
 
-        // ---------- 更新 QSL 狀態 ----------
+        // ---------- 管理員上傳 QSL 圖片 ----------
+        function handleQslImageUpload(recordId, type, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showToast('⚠️ 請上傳圖片檔案');
+                event.target.value = '';
+                return;
+            }
+
+            if (file.size > 800 * 1024) {
+                showToast('⚠️ 圖片超過 800KB，請壓縮後再上傳');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                const record = qslRecords.find(r => r.id === recordId);
+                if (!record) return;
+
+                if (type === 'received') {
+                    record.receivedImg = base64;
+                    // 如果有收到圖片，自動將狀態設為已收到（若尚未設定）
+                    if (record.qslStatus !== 'received') {
+                        record.qslStatus = 'received';
+                    }
+                } else if (type === 'sent') {
+                    record.sentImg = base64;
+                    if (record.qslStatus !== 'sent' && record.qslStatus !== 'received') {
+                        record.qslStatus = 'sent';
+                    }
+                }
+
+                saveData(qslRecords);
+                renderTables();
+                showToast(`✅ 已上傳 ${type === 'received' ? '收到' : '發出'} QSL 圖片`);
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ---------- 更新狀態 ----------
         function updateStatus(id, newStatus) {
             const record = qslRecords.find(r => r.id === id);
             if (record) {
@@ -699,46 +891,6 @@
             showToast('已重置為示範資料');
         }
 
-        // ---------- 上傳 QSL (一般用戶模擬) ----------
-        let selectedQSLFile = null;
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    showToast('⚠️ 檔案大小超過 5MB，請重新選擇');
-                    event.target.value = '';
-                    document.getElementById('fileNameDisplay').textContent = '';
-                    selectedQSLFile = null;
-                    return;
-                }
-                selectedQSLFile = file;
-                document.getElementById('fileNameDisplay').textContent = `已選擇：${file.name}`;
-            } else {
-                selectedQSLFile = null;
-                document.getElementById('fileNameDisplay').textContent = '';
-            }
-        }
-
-        function submitQSLUpload() {
-            if (!selectedQSLFile) {
-                showToast('請先選擇要上傳的 QSL 卡檔案');
-                return;
-            }
-            const pendingRecord = qslRecords.find(r => r.qslStatus === 'pending');
-            if (pendingRecord) {
-                pendingRecord.qslStatus = 'received';
-                pendingRecord.note = (pendingRecord.note || '') + ' (已上傳 QSL 卡)';
-                saveData(qslRecords);
-                renderTables();
-                showToast(`✅ 已收到 QSL 卡，通聯 ${pendingRecord.call} 狀態更新為「已收到」`);
-            } else {
-                showToast('ℹ️ 目前沒有待處理的通聯紀錄，已記錄您的上傳意願');
-            }
-            document.getElementById('qslFile').value = '';
-            document.getElementById('fileNameDisplay').textContent = '';
-            selectedQSLFile = null;
-        }
-
         // ---------- 管理員：ADIF 上傳 ----------
         let selectedAdifFile = null;
         function handleAdifSelect(event) {
@@ -752,137 +904,28 @@
             }
         }
 
-        // 解析 ADIF 文字，回傳紀錄陣列
+        // 解析 ADIF
         function parseADIF(content) {
-            // 正規化：移除多餘空白、處理大小寫
             const records = [];
             let current = {};
             let pos = 0;
             const len = content.length;
 
-            // 跳過 ADIF 檔頭（如果有）
             const headerEnd = content.toUpperCase().indexOf('<EOH>');
-            if (headerEnd !== -1) {
-                pos = headerEnd + 5; // 跳過 <EOH>
-            }
+            if (headerEnd !== -1) pos = headerEnd + 5;
 
             while (pos < len) {
-                // 尋找下一個標籤
                 const tagStart = content.indexOf('<', pos);
                 if (tagStart === -1) break;
                 const tagEnd = content.indexOf('>', tagStart);
                 if (tagEnd === -1) break;
 
                 const tagFull = content.substring(tagStart + 1, tagEnd).trim();
-                // 解析欄位名稱與長度：例如 CALL:6
                 const parts = tagFull.split(':');
                 const fieldName = parts[0].trim().toUpperCase();
-                let fieldLen = null;
-                if (parts.length > 1) {
-                    fieldLen = parseInt(parts[1].trim(), 10);
-                }
+                let fieldLen = parts.length > 1 ? parseInt(parts[1].trim(), 10) : null;
 
-                // 移動到標籤之後
                 pos = tagEnd + 1;
 
-                // 如果欄位有指定長度，讀取對應長度的值
                 let value = '';
-                if (fieldLen !== null && !isNaN(fieldLen)) {
-                    value = content.substring(pos, pos + fieldLen).trim();
-                    pos += fieldLen;
-                } else {
-                    // 沒有長度（例如 <EOR>），不讀取值
-                    if (fieldName === 'EOR') {
-                        // 結束一筆紀錄
-                        if (Object.keys(current).length > 0) {
-                            records.push({ ...current });
-                            current = {};
-                        }
-                        continue;
-                    }
-                    // 其他無長度標籤，跳過
-                    continue;
-                }
-
-                // 處理欄位
-                if (fieldName === 'EOR') {
-                    if (Object.keys(current).length > 0) {
-                        records.push({ ...current });
-                        current = {};
-                    }
-                } else if (fieldName === 'QSO_DATE') {
-                    // ADIF 日期格式為 YYYYMMDD，轉為 YYYY-MM-DD
-                    let d = value;
-                    if (d.length === 8) {
-                        d = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`;
-                    }
-                    current.date = d;
-                } else if (fieldName === 'CALL') {
-                    current.call = value.toUpperCase();
-                } else if (fieldName === 'BAND') {
-                    current.band = value;
-                } else if (fieldName === 'MODE') {
-                    current.mode = value.toUpperCase();
-                } else if (fieldName === 'FREQ') {
-                    // 如果有頻率但沒有 BAND，可依頻率推算
-                    if (!current.band) {
-                        const freq = parseFloat(value);
-                        if (!isNaN(freq)) {
-                            if (freq >= 1.8 && freq <= 2.0) current.band = '160m';
-                            else if (freq >= 3.5 && freq <= 4.0) current.band = '80m';
-                            else if (freq >= 7.0 && freq <= 7.3) current.band = '40m';
-                            else if (freq >= 10.1 && freq <= 10.15) current.band = '30m';
-                            else if (freq >= 14.0 && freq <= 14.35) current.band = '20m';
-                            else if (freq >= 18.068 && freq <= 18.168) current.band = '17m';
-                            else if (freq >= 21.0 && freq <= 21.45) current.band = '15m';
-                            else if (freq >= 24.89 && freq <= 24.99) current.band = '12m';
-                            else if (freq >= 28.0 && freq <= 29.7) current.band = '10m';
-                            else if (freq >= 50 && freq <= 54) current.band = '6m';
-                            else if (freq >= 144 && freq <= 148) current.band = '2m';
-                            else if (freq >= 430 && freq <= 440) current.band = '70cm';
-                        }
-                    }
-                } else if (fieldName === 'COMMENT') {
-                    current.note = (current.note || '') + value;
-                } else if (fieldName === 'NOTES') {
-                    current.note = (current.note || '') + value;
-                } else if (fieldName === 'QSL_SENT') {
-                    // 若已寄出，可標記狀態
-                    current._qslSent = value;
-                } else if (fieldName === 'QSL_RCVD') {
-                    current._qslRcvd = value;
-                }
-                // 其他欄位忽略
-            }
-
-            // 萬一最後一筆沒有 EOR，也加入
-            if (Object.keys(current).length > 0) {
-                records.push({ ...current });
-            }
-
-            return records;
-        }
-
-        function uploadADIF() {
-            if (!selectedAdifFile) {
-                showToast('請先選擇 ADIF 檔案');
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const content = e.target.result;
-                const parsed = parseADIF(content);
-                let newRecords = [];
-                let errorCount = 0;
-
-                for (const p of parsed) {
-                    if (!p.call) { errorCount++; continue; }
-                    // 決定 QSL 狀態
-                    let qslStatus = 'pending';
-                    if (p._qslRcvd && (p._qslRcvd.toUpperCase() === 'Y')) {
-                        qslStatus = 'received';
-                    } else if (p._qslSent && (p._qslSent.toUpperCase() === 'Y')) {
-                        qslStatus = 'sent';
-                    }
-
-                    newRecords
+                if (fieldLen !== null && !isNaN
