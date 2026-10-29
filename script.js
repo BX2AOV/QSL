@@ -116,11 +116,8 @@ async function fetchData() {
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
 
-    _supabase.functions.invoke('clever-responder').then(({ data, error }) => {
-        if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
-            console.log("🧹 背景清理通知：", data.message);
-        }
-    });
+    // 資安：原本每次開首頁都會呼叫 clever-responder（無鑑權的邊緣函式），
+    // 任何人只要狂刷首頁就能無限觸發。已移到管理後台登入後才執行。
 
     // H-1 修復：改讀公開視圖，requests 欄位根本不下發
     const { data, error } = await _supabase

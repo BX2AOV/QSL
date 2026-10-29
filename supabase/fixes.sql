@@ -7,13 +7,13 @@
 -- 使用說明
 --   1. 先只跑「第一部分」，跑完打開 https://qsl-web.pages.dev/ 確認首頁
 --      表格還有資料。若首頁正常，再跑第二部分。
---   2. 第二部分有一個 TODO，請把 'CHANGE_ME@example.com' 改成你自己的
---      Supabase 管理員登入 Email（manage 頁面登入用的那個）。
+--   2. 第二部分直接給 authenticated 權限（前提：註冊已關閉）。
 --   3. 全部都是可逆的，沒有 DROP TABLE。
 --
 -- 這份 SQL 修的是：
 --   [嚴重] qsl_records 匿名可讀，含姓名/電話/地址
 --   [嚴重] admins 匿名可讀可寫可刪，且存明文密碼
+--   [嚴重] qsl-images 儲存桶匿名可寫入（第五部分）
 -- ============================================================
 
 
@@ -145,6 +145,87 @@ revoke all on table public.pin_attempts from anon, authenticated;
 --     → Minimum TLS Version 設成 TLS 1.2
 --
 -- [4] 檢查 Edge Function 是否可被任意觸發
---     clever-responder 目前任何人開首頁就會被呼叫，
---     建議改成 Cron 排程執行，不要由前端觸發。
+--     clever-responder 目前任何人開首頁就會被呼叫。前端已改成管理員登入後
+--     才呼叫，但函式本身仍無鑑權，任何人直接打 API 還是能觸發。
+--     最徹底的做法：在 Dashboard → Edge Functions 把該函式的 JWT 驗證打開
+--     （Enforce JWT Verification = ON），並改由 Cron 定時執行。
 -- ============================================================
+
+
+-- ============================================================
+-- 第五部分：Storage 匿名寫入（qsl-images 儲存桶）
+-- ============================================================
+--
+-- 問題：anon key 可以直接對 qsl-images 上傳檔案（實測回 409 Duplicate，
+--       代表「檔案已存在」的檢查有跑到，也就代表 INSERT policy 沒擋）。
+--       任何人都能用你的儲存空間放任意檔案，佔頻寬、也可能被拿來托管惡意內容。
+--
+-- 修法：把 storage.objects 上「roles 含 anon」且跟 qsl-images 有關的 policy
+--       全部刪掉，只留 authenticated（管理員）可以寫。
+--       公開讀取不受影響（bucket 是 public，QSL 卡圖片本來就要公開展示）。
+--
+-- ⚠️ 建議先跑 5-3 診斷，把結果貼給我確認，再跑 5-1 / 5-2。
+
+begin;
+
+-- ------------------------------------------------------------
+-- 5-1. 刪除匿名角色的寫入 policy
+-- ------------------------------------------------------------
+do $$
+declare p record;
+begin
+  for p in
+    select policyname
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename  = 'objects'
+      and (roles::text ilike '%anon%' or roles::text ilike '%public%')
+      and (
+            coalesce(qual, '')          ilike '%qsl-images%'
+         or coalesce(with_check, '')    ilike '%qsl-images%'
+         or (qual is null and with_check is null)   -- 完全開放型 policy
+         or qual = 'true'
+         or with_check = 'true'
+      )
+  loop
+    execute format('drop policy %I on storage.objects', p.policyname);
+    raise notice 'dropped policy: %', p.policyname;
+  end loop;
+end $$;
+
+-- ------------------------------------------------------------
+-- 5-2. 只給登入後的管理員寫入權限
+-- ------------------------------------------------------------
+drop policy if exists "qsl-images admin insert" on storage.objects;
+create policy "qsl-images admin insert"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'qsl-images');
+
+drop policy if exists "qsl-images admin update" on storage.objects;
+create policy "qsl-images admin update"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'qsl-images')
+  with check (bucket_id = 'qsl-images');
+
+drop policy if exists "qsl-images admin delete" on storage.objects;
+create policy "qsl-images admin delete"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'qsl-images');
+
+commit;
+
+
+-- ------------------------------------------------------------
+-- 5-3. 診斷：跑完後執行這段，看還剩哪些 policy
+-- ------------------------------------------------------------
+-- select policyname, cmd, roles::text, qual, with_check
+-- from pg_policies
+-- where schemaname = 'storage' and tablename = 'objects'
+-- order by policyname;
+--
+-- 預期：qsl-images 相關的 policy 只剩上面三個 admin 開頭、roles = {authenticated}
+--       如果還看到 roles 含 anon 的，把那行貼給我。
+

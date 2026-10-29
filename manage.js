@@ -125,6 +125,23 @@ async function logout() {
     checkUser(); 
 }
 
+// ============================================================
+// 背景清理（原公開首頁的 clever-responder 呼叫）
+// ============================================================
+async function runCleanupOnce() {
+    // 每次瀏覽器 session 只跑一次，避免管理員一直重新整理造成重複觸發
+    if (sessionStorage.getItem('qslCleanupDone') === '1') return;
+    sessionStorage.setItem('qslCleanupDone', '1');
+    try {
+        const { data } = await _supabase.functions.invoke('clever-responder');
+        if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
+            console.log('🧹 背景清理通知：', data.message);
+        }
+    } catch (e) {
+        console.warn('背景清理失敗（不影響後台操作）', e);
+    }
+}
+
 async function checkUser() {
     // 向 Supabase 確認是否有真實的有效 Session
     const { data: { session }, error } = await _supabase.auth.getSession();
@@ -137,6 +154,10 @@ async function checkUser() {
         roleBadge.className = 'role-badge admin';
         renderAdminTable(); 
         calculateStorageUsage(); 
+
+        // 資安：原本公開首頁每次載入都會觸發這支無鑑權的邊緣函式，
+        // 任何人狂刷首頁就能無限觸發。改為只有管理員登入後才呼叫。
+        runCleanupOnce();
     } else {
         // 未登入
         loginSection.style.display = 'block'; 
