@@ -1,4 +1,4 @@
-/* ===== Reset ===== */
+1/* ===== Reset ===== */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
 body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
 .app-container { width: 100%; max-width: 1200px; }
@@ -155,4 +155,9 @@ tr:hover td { background: #fafdff; }
     .admin-login-box { flex-direction: column !important; padding: 16px !important; gap: 12px !important; }
     .admin-login-box input { flex: none !important; width: 100% !important; height: 50px !important; padding: 10px 16px !important; border-radius: 12px !important; }
     .admin-login-box .btn { width: 100% !important; padding: 12px !important; }
+}
+
+/* 首頁如果沒有圖片，就完全隱藏佔位框 */
+.qsl-thumb-empty {
+    display: none !important;
 }
