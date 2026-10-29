@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含搜尋、LoTW同步與 30 天計時)
+   manage.js - 管理員後台完整邏輯 (包含雙重篩選)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -170,6 +170,7 @@ async function calculateStorageUsage() {
 async function renderAdminTable() {
     if (!manageTableBody) return;
     
+    // 如果 allRecords 是空的，才去抓資料
     if (allRecords.length === 0) {
         manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
         const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
@@ -180,21 +181,32 @@ async function renderAdminTable() {
         }
         
         allRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
-        filteredRecords = [...allRecords];
     }
 
+    // 🌟 取得搜尋與篩選條件
     const searchInput = document.getElementById('adminSearchInput');
     const keyword = searchInput ? searchInput.value.trim().toUpperCase() : '';
     
-    if (keyword) {
-        filteredRecords = allRecords.filter(r => 
+    const filterStatus = document.getElementById('filterStatus')?.value || 'all';
+    const filterMode = document.getElementById('filterMode')?.value || 'all';
+
+    // 🌟 執行過濾邏輯
+    filteredRecords = allRecords.filter(r => {
+        // 1. 關鍵字搜尋 (呼號、日期、頻段)
+        const matchKeyword = !keyword || 
             r.call.includes(keyword) || 
             (r.date && r.date.includes(keyword)) || 
-            (r.band && r.band.toUpperCase().includes(keyword))
-        );
-    } else {
-        filteredRecords = [...allRecords];
-    }
+            (r.band && r.band.toUpperCase().includes(keyword));
+
+        // 2. 狀態篩選
+        const matchStatus = (filterStatus === 'all') || (r.status === filterStatus || (!r.status && filterStatus === 'none'));
+
+        // 3. 模式篩選 (包含衛星 SAT 的判斷)
+        const displayInfo = getDisplayInfo(r);
+        const matchMode = (filterMode === 'all') || (displayInfo.mode === filterMode);
+
+        return matchKeyword && matchStatus && matchMode;
+    });
 
     if (filteredRecords.length === 0) {
         manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">🔍 找不到符合條件的紀錄</div></td></tr>';
@@ -630,9 +642,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
-    document.getElementById('adminSearchInput')?.addEventListener('input', function() {
-        renderAdminTable();
-    });
+    // 🌟 搜尋與雙重篩選事件綁定
+    document.getElementById('adminSearchInput')?.addEventListener('input', function() { renderAdminTable(); });
+    document.getElementById('filterStatus')?.addEventListener('change', function() { renderAdminTable(); });
+    document.getElementById('filterMode')?.addEventListener('change', function() { renderAdminTable(); });
 
     document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
         const btn = this;
