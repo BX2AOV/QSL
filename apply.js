@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (包含分頁與四國語言)
+   apply.js - 申請頁面專用邏輯 (包含四國語言與自訂國碼)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,10 +7,6 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
-
-// 🌟 分頁專用變數
-let currentPage = 1;
-const itemsPerPage = 10;
 
 // ============================================================
 // 核心：精準點擊哪個語言就切換
@@ -141,7 +137,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     applyLanguage();
 
-    // 綁定自訂國碼選單的展開事件
     if (countryCodeTrigger) {
         countryCodeTrigger.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -149,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 點擊「無需提供」的邏輯
     if (btnNoPhone) {
         btnNoPhone.addEventListener('click', function() {
             isPhoneDisabled = !isPhoneDisabled;
@@ -220,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
         matchedRecords.forEach(r => { if (!r.requests) r.requests = []; });
         
-        currentPage = 1; // 搜尋時重置到第一頁
         renderQueryResult();
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
@@ -232,15 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderQueryResult() {
-        const totalPages = Math.ceil(matchedRecords.length / itemsPerPage);
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedRecords = matchedRecords.slice(startIndex, endIndex);
-
-        queryResultBody.innerHTML = paginatedRecords.map(r => {
+        queryResultBody.innerHTML = matchedRecords.map(r => {
             const st = computeQslStatus(r);
             const already = (r.requests || []).some(req => req.userCall === queryCallsign);
             
@@ -288,51 +273,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         updateSelectedCount();
-        updateQueryPagination(totalPages);
-    }
-
-    // 🌟 動態生成申請頁的分頁按鈕
-    function updateQueryPagination(totalPages) {
-        let paginationContainer = document.getElementById('queryPaginationContainer');
-        
-        if (!paginationContainer) {
-            paginationContainer = document.createElement('div');
-            paginationContainer.id = 'queryPaginationContainer';
-            paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
-            
-            const tableWrapper = document.querySelector('#queryResultCard .table-wrapper');
-            if (tableWrapper) {
-                tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
-            }
-        }
-
-        if (totalPages <= 1) {
-            paginationContainer.innerHTML = '';
-            return;
-        }
-
-        const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
-        const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
-
-        paginationContainer.innerHTML = `
-            <button id="btnQueryPrev" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
-            <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">第 ${currentPage} / ${totalPages} 頁</span>
-            <button id="btnQueryNext" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
-        `;
-
-        document.getElementById('btnQueryPrev').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderQueryResult();
-            }
-        });
-
-        document.getElementById('btnQueryNext').addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderQueryResult();
-            }
-        });
     }
 
     function updateSelectedCount() {
