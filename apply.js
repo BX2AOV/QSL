@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (支援無需手機與國碼)
+   apply.js - 申請頁面專用邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -8,7 +8,9 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
 
-// 🌟 精準切換語言
+// ============================================================
+// 語言切換核心邏輯
+// ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
     localStorage.setItem('site_lang', currentLang);
@@ -16,34 +18,42 @@ window.changeLang = function(lang) {
 };
 
 function applyLanguage() {
+    // 1. 切換文字
     document.querySelectorAll('[data-zh]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}`)) {
             el.textContent = el.getAttribute(`data-${currentLang}`);
         }
     });
 
+    // 2. 切換 Placeholder
     document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}-placeholder`)) {
             el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
         }
     });
 
-    // 翻譯「無需提供」按鈕
+    // 3. 翻譯「無需提供」按鈕
     const btnNoPhone = document.getElementById('btnNoPhone');
     if (btnNoPhone) {
-        const noPhoneText = { zh: '無需提供', cn: '无需提供', en: 'No Phone', ja: '電話不要' };
-        // 只有在按鈕沒被啟動時才翻譯，避免覆蓋掉「已取消提供」的字眼
-        if (btnNoPhone.getAttribute('data-active') !== 'true') {
-            btnNoPhone.textContent = noPhoneText[currentLang];
-        }
+        const isCancelled = btnNoPhone.getAttribute('data-active') === 'true';
+        const noPhoneText = { 
+            zh: isCancelled ? '已取消提供' : '無需提供', 
+            cn: isCancelled ? '已取消提供' : '无需提供', 
+            en: isCancelled ? 'Cancelled' : 'No Phone', 
+            ja: isCancelled ? 'キャンセル済' : '電話不要' 
+        };
+        btnNoPhone.textContent = noPhoneText[currentLang];
     }
 
+    // 4. 驅動滑塊位置
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
 
+    // 5. 更新 HTML lang
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
+    // 6. 如果有申請紀錄，重新渲染
     if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
         renderMyRequests();
     }
@@ -98,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let queryCallsign = '';
     let matchedRecords = [];
     let selectedRecordIds = new Set();
-    let isPhoneDisabled = false; // 紀錄是否隱藏手機欄位
+    let isPhoneDisabled = false;
 
     const queryInput = document.getElementById('queryCallsignInput');
     const queryHint = document.getElementById('queryResultHint');
@@ -121,30 +131,29 @@ document.addEventListener('DOMContentLoaded', function() {
         btnNoPhone.addEventListener('click', function() {
             isPhoneDisabled = !isPhoneDisabled;
             if (isPhoneDisabled) {
+                // 隱藏手機與國碼
                 shipPhone.style.display = 'none';
                 shipCountryCode.style.display = 'none';
                 phoneReq.style.display = 'none';
                 
+                // 按鈕變黑底白字
                 btnNoPhone.style.background = '#0b2a4a';
                 btnNoPhone.style.color = '#fff';
                 btnNoPhone.style.borderColor = '#0b2a4a';
                 btnNoPhone.setAttribute('data-active', 'true');
-                
-                const noPhoneText = { zh: '已取消提供', cn: '已取消提供', en: 'Cancelled', ja: 'キャンセル済' };
-                btnNoPhone.textContent = noPhoneText[currentLang];
             } else {
+                // 恢復手機與國碼
                 shipPhone.style.display = 'block';
                 shipCountryCode.style.display = 'block';
                 phoneReq.style.display = 'inline';
                 
+                // 按鈕恢復白底黑字
                 btnNoPhone.style.background = '';
                 btnNoPhone.style.color = '';
                 btnNoPhone.style.borderColor = '#cbdae8';
                 btnNoPhone.removeAttribute('data-active');
-                
-                const noPhoneText = { zh: '無需提供', cn: '无需提供', en: 'No Phone', ja: '電話不要' };
-                btnNoPhone.textContent = noPhoneText[currentLang];
             }
+            applyLanguage(); // 更新按鈕文字
         });
     }
 
