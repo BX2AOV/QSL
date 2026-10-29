@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (支援手機分次選取)
+   manage.js - 管理員後台完整邏輯 (支援狀態編輯與多次選取)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -13,9 +13,9 @@ const btnLogin = document.getElementById('btnLogin');
 const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 
-// 🌟 這是關鍵：用來儲存你分次點擊選取的檔案
 let selectedFilesArray = [];
 
+// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -39,6 +39,7 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
+// 衛星與顯示判斷
 function getDisplayInfo(r) {
     let displayBand = r.band;
     let displayMode = r.mode;
@@ -199,6 +200,19 @@ async function renderAdminTable() {
                 ${sentBtnHtml}
             </div>`;
 
+        // 👇 這裡是狀態下拉選單 👇
+        const currentStatus = r.status || 'none';
+        const statusSelect = `
+            <select onchange="changeStatus(${r.id}, this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid #cbdae8; font-size:0.85rem; background:#fff; cursor:pointer; outline:none;">
+                <option value="none" ${currentStatus === 'none' ? 'selected' : ''}>未申請</option>
+                <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>待處理</option>
+                <option value="received_paper" ${currentStatus === 'received_paper' ? 'selected' : ''}>已收到紙卡</option>
+                <option value="received_eqsl" ${currentStatus === 'received_eqsl' ? 'selected' : ''}>已收到電子卡</option>
+                <option value="sent" ${currentStatus === 'sent' ? 'selected' : ''}>已發出紙卡</option>
+                <option value="not_needed" ${currentStatus === 'not_needed' ? 'selected' : ''}>無需換卡</option>
+            </select>
+        `;
+
         return `<tr>
             <td>${escapeHtml(r.date)}</td>
             <td><strong>${escapeHtml(r.time || '—')}</strong></td>
@@ -207,13 +221,28 @@ async function renderAdminTable() {
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
             <td>${reqHtml}</td>
             <td>${recvHtml}${sentHtml}</td>
+            <td>${statusSelect}</td>
             <td>
-                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; white-space:nowrap;">🗑️ 刪除整筆</button>
+                <button onclick="deleteRecord(${r.id})" style="background:#0b2a4a; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; white-space:nowrap;">🗑️ 刪除</button>
             </td>
         </tr>`;
     }).join('');
 }
 
+// 修改狀態的函式
+async function changeStatus(recordId, newStatus) {
+    showToast('⏳ 更新狀態中...');
+    const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
+    
+    if (error) { 
+        showToast('❌ 更新失敗'); 
+        console.error(error);
+    } else { 
+        showToast('✅ 狀態已更新'); 
+    }
+}
+
+// ---------- 刪除整筆 ----------
 async function deleteRecord(recordId) {
     if (!confirm('⚠️ 警告：您確定要刪除這筆通聯紀錄嗎？\n這將會連同該筆的所有申請資料一起刪除！')) return;
     showToast('⏳ 正在刪除...');
@@ -222,6 +251,7 @@ async function deleteRecord(recordId) {
     else { showToast('🗑️ 已成功刪除該筆通聯紀錄'); renderAdminTable(); calculateStorageUsage(); }
 }
 
+// ---------- 刪除單筆圖片 ----------
 async function deleteQslImage(recordId, type) {
     if (!confirm(`確定要刪除這張「${type === 'received' ? '收到' : '發出'}」的 QSL 圖片嗎？`)) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('receivedImg, sentImg').eq('id', recordId).single();
@@ -239,6 +269,7 @@ async function deleteQslImage(recordId, type) {
     else { showToast('🗑️ 圖片已刪除'); renderAdminTable(); calculateStorageUsage(); }
 }
 
+// ---------- 處理使用者的申請 ----------
 async function deleteRequest(recordId, reqIndex) {
     if (!confirm('確定要刪除這筆使用者的換卡申請嗎？')) return;
     const { data: record, error: fetchError } = await _supabase.from('qsl_records').select('requests').eq('id', recordId).single();
@@ -246,7 +277,7 @@ async function deleteRequest(recordId, reqIndex) {
     let requests = record.requests || [];
     requests.splice(reqIndex, 1);
     const { error: updateError } = await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
-    if (updateError) { showToast('❌ 刪除失敗'); } else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); calculateStorageUsage(); }
+    if (updateError) { showToast('❌ 刪除失敗'); } else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); }
 }
 
 async function approveRequest(recordId, reqIndex) {
@@ -267,6 +298,9 @@ async function rejectRequest(recordId, reqIndex) {
     showToast('已拒絕申請'); renderAdminTable();
 }
 
+// ============================================================
+// 圖片上傳
+// ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -291,29 +325,21 @@ async function handleQslImageUpload(recordId, type, event) {
 }
 
 // ============================================================
-// 🌟 核心修改：ADIF 分次選取邏輯
+// ADIF 上傳
 // ============================================================
-
-// 1. 點擊選取檔案時，把檔案塞進陣列，而不是覆蓋
 function handleAdifSelect(event) {
     const files = event.target.files;
     if (files && files.length > 0) {
         for (let i = 0; i < files.length; i++) {
-            // 檢查是否重複（用檔名+大小判斷）
             const isDuplicate = selectedFilesArray.some(f => f.name === files[i].name && f.size === files[i].size);
-            if (!isDuplicate) {
-                selectedFilesArray.push(files[i]);
-            }
+            if (!isDuplicate) selectedFilesArray.push(files[i]);
         }
-        // 更新畫面文字，顯示目前選了幾個
         document.getElementById('adifFileNameDisplay').textContent = `已選擇 ${selectedFilesArray.length} 個檔案，可繼續點擊選取。`;
-        document.getElementById('btnClearFiles').style.display = 'block'; // 顯示清除按鈕
+        document.getElementById('btnClearFiles').style.display = 'block';
     }
-    // 清空 input 的 value，這樣下次點擊同一個檔案才會觸發 onchange
     event.target.value = '';
 }
 
-// 2. 清除已選取的檔案
 function clearSelectedFiles() {
     selectedFilesArray = [];
     document.getElementById('adifFileNameDisplay').textContent = '';
@@ -348,7 +374,6 @@ function parseADIF(content) {
     return records;
 }
 
-// 3. 上傳時迴圈處理陣列裡的所有檔案
 async function uploadADIF() {
     if (selectedFilesArray.length === 0) { showToast('請先選擇 ADIF 檔案'); return; }
     const btnUploadADIF = document.getElementById('btnUploadADIF');
@@ -359,7 +384,6 @@ async function uploadADIF() {
     let allNewRecords = [];
     let processed = 0;
 
-    // 用 Promise 確保所有檔案都讀取完畢
     const readPromises = selectedFilesArray.map(file => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -401,7 +425,6 @@ async function uploadADIF() {
         }
     } else { showToast('⚠️ 無有效資料'); }
 
-    // 重置
     btnUploadADIF.disabled = false; 
     btnUploadADIF.textContent = '全部上傳並匯入';
     clearSelectedFiles();
@@ -446,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogout?.addEventListener('click', logout);
     document.getElementById('adminPassword')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
     
-    // 綁定 ADIF 選取與上傳、清除
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
     document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
     document.getElementById('btnClearFiles')?.addEventListener('click', clearSelectedFiles);
