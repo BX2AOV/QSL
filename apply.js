@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;" data-zh="已申請" data-cn="已申请" data-en="Requested" data-ja="申請済">已申請</span>` 
                 : `<input type="checkbox" class="record-checkbox" data-id="${r.id}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             
-            // 🌟 處理頻段與頻率的顯示
+            // 處理頻段與頻率的顯示
             let displayBand = r.band;
             let displayNote = r.note || '—';
 
