@@ -1,5 +1,5 @@
 /* ============================================================
-   script.js - 首頁（總覽）專用邏輯
+   script.js - 首頁（總覽）專用邏輯 (包含中英切換)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,14 +7,43 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
+let currentLang = localStorage.getItem('site_lang') || 'zh'; // 預設中文
 
-function showToast(msg) { 
-    const t = document.getElementById('toast'); 
-    if(!t) return; 
-    t.textContent = msg; t.classList.add('show'); 
-    clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 2500); 
+// ============================================================
+// 語言切換核心邏輯
+// ============================================================
+function applyLanguage() {
+    // 1. 切換所有有 data-zh 與 data-en 的元素
+    document.querySelectorAll('[data-zh]').forEach(el => {
+        if (currentLang === 'en') {
+            el.textContent = el.getAttribute('data-en');
+        } else {
+            el.textContent = el.getAttribute('data-zh');
+        }
+    });
+
+    // 2. 更新切換按鈕文字
+    const btn = document.getElementById('langToggle');
+    if (btn) {
+        btn.textContent = currentLang === 'en' ? '中文' : 'EN';
+    }
+
+    // 3. 更新 HTML 的 lang 屬性
+    document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-Hant';
+
+    // 4. 重新渲染表格，讓資料狀態也跟著翻譯
+    if (qslRecords.length > 0) renderMainTable();
 }
+
+document.getElementById('langToggle')?.addEventListener('click', () => {
+    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('site_lang', currentLang);
+    applyLanguage();
+});
+
+// ============================================================
+// 共用工具與狀態判斷
+// ============================================================
 function escapeHtml(text) { 
     if (!text) return ''; 
     const div = document.createElement('div'); 
@@ -22,24 +51,27 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
-// 狀態判斷
 function computeQslStatus(r) {
-    // 優先顯示管理員手動設定的狀態
-    if (r.status === 'completed') return { cls: 'badge-completed-dark', text: '已交換完成' }; // 👈 新狀態
-    if (r.status === 'received_eqsl') return { cls: 'badge-received', text: '已收到電子卡' };
-    if (r.status === 'not_needed') return { cls: 'badge-not-needed', text: '無需換卡' }; 
-    if (r.status === 'received_paper') return { cls: 'badge-received', text: '已收到紙卡' };
-    if (r.status === 'sent') return { cls: 'badge-sent', text: '已發出紙卡' };
-    if (r.status === 'pending') return { cls: 'badge-pending', text: '待處理' };
+    // 狀態翻譯字典
+    const t = {
+        zh: { none: '未申請', pending: '待處理', paper: '已收到紙卡', eqsl: '已收到電子卡', sent: '已發出紙卡', completed: '已交換完成', not_needed: '無需換卡', both: '雙向完成', rcvd: '已收到', snt: '已發出' },
+        en: { none: 'Not Requested', pending: 'Pending', paper: 'Paper QSL Rcvd', eqsl: 'eQSL Rcvd', sent: 'Paper QSL Sent', completed: 'Completed', not_needed: 'No QSL Needed', both: 'Both Completed', rcvd: 'Received', snt: 'Sent' }
+    };
+    const lang = currentLang;
 
-    // 如果沒有手動狀態，判斷圖片與申請
-    if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: '雙向完成' };
-    if (r.receivedImg) return { cls: 'badge-received', text: '已收到' };
-    if (r.sentImg) return { cls: 'badge-sent', text: '已發出' };
+    if (r.status === 'completed') return { cls: 'badge-completed-dark', text: t[lang].completed };
+    if (r.status === 'received_eqsl') return { cls: 'badge-received', text: t[lang].eqsl };
+    if (r.status === 'not_needed') return { cls: 'badge-not-needed', text: t[lang].not_needed }; 
+    if (r.status === 'received_paper') return { cls: 'badge-received', text: t[lang].paper };
+    if (r.status === 'sent') return { cls: 'badge-sent', text: t[lang].sent };
+    if (r.status === 'pending') return { cls: 'badge-pending', text: t[lang].pending };
+
+    if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: t[lang].both };
+    if (r.receivedImg) return { cls: 'badge-received', text: t[lang].rcvd };
+    if (r.sentImg) return { cls: 'badge-sent', text: t[lang].snt };
+    if (r.requests && r.requests.length > 0) return { cls: 'badge-pending', text: t[lang].pending };
     
-    if (r.requests && r.requests.length > 0) return { cls: 'badge-pending', text: '待處理' };
-    
-    return { cls: 'badge-none', text: '未申請' };
+    return { cls: 'badge-none', text: t[lang].none };
 }
 
 function openLightbox(src) {
@@ -56,12 +88,10 @@ async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>`;
-
     const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false });
 
     if (error) { 
-        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">資料載入失敗</div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">Data load failed</div></td></tr>`;
         return; 
     }
 
@@ -74,7 +104,8 @@ function renderMainTable() {
     if (!tbody) return;
 
     if (qslRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">📭 目前沒有通聯紀錄</div></td></tr>`;
+        const emptyText = currentLang === 'en' ? '📭 No QSO records found' : '📭 目前沒有通聯紀錄';
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText}</div></td></tr>`;
         return;
     }
     
@@ -101,7 +132,8 @@ function renderMainTable() {
                 displayMode = 'SAT';       
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             }
-            displayNote = displayNote.replace('衛星通聯', '').trim() || '—';
+            // 翻譯備註裡的「衛星通聯」
+            displayNote = displayNote.replace('衛星通聯', currentLang === 'en' ? 'SAT QSO' : '衛星通聯').trim() || '—';
         }
 
         return `<tr>
@@ -118,8 +150,14 @@ function renderMainTable() {
     }).join('');
 }
 
+// ============================================================
+// 初始化
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('qsoTableBody')) return;
+
+    // 先套用語言設定
+    applyLanguage();
 
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
