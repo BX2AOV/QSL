@@ -42,6 +42,25 @@
                 <h2>⚙️ 管理後台</h2>
                 <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
             </div>
+
+            <!-- 雲端資源監測 -->
+            <div style="background: #f8fbfe; border: 1px solid #dbe7f3; border-radius: 16px; padding: 16px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 0.85rem; color: #5a6e85; margin-bottom: 6px;">📊 資料庫文字估算 (上限 500 MB)</div>
+                    <div style="background: #e0e9f2; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="dbUsageBar" style="background: #0b2a4a; height: 100%; width: 0%; transition: width 0.5s;"></div>
+                    </div>
+                    <div id="dbUsageText" style="font-size: 0.8rem; color: #1a3a5c; margin-top: 6px; font-weight: bold;">計算中...</div>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 0.85rem; color: #5a6e85; margin-bottom: 6px;">🖼️ 圖片儲存空間 (上限 1000 MB)</div>
+                    <div style="background: #e0e9f2; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="storageUsageBar" style="background: #0066cc; height: 100%; width: 0%; transition: width 0.5s;"></div>
+                    </div>
+                    <div id="storageUsageText" style="font-size: 0.8rem; color: #1a3a5c; margin-top: 6px; font-weight: bold;">計算中...</div>
+                </div>
+            </div>
+
             <div class="card-sub">在這裡上傳 ADIF 通聯紀錄，或手動新增單筆資料。</div>
 
             <div class="admin-upload-grid">
@@ -90,7 +109,7 @@
         </section>
     </div>
 
-    <!-- 燈箱 (點擊圖片放大) -->
+    <!-- 燈箱 -->
     <div class="lightbox" id="lightbox">
         <span class="lightbox-close" id="lightboxClose">×</span>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
