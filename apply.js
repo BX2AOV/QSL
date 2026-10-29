@@ -1,6 +1,5 @@
 /* ============================================================
    apply.html 專用邏輯：查詢通聯 → 填收件資訊 → 送出申請
-   包含記憶使用者呼號功能
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -32,7 +31,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedCall = localStorage.getItem('user_callsign');
     if (savedCall) {
         queryInput.value = savedCall;
-        // 自動執行查詢
         setTimeout(() => doQuery(), 100);
     }
 
@@ -41,7 +39,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!call) { showToast('請輸入呼號'); return; }
         
         queryCallsign = call;
-        // 記住使用者的呼號
         localStorage.setItem('user_callsign', queryCallsign);
         
         queryHint.innerHTML = '<span style="color:#5a6e85;">⏳ 查詢中...</span>';
@@ -67,25 +64,32 @@ document.addEventListener('DOMContentLoaded', function() {
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
         
-        // 只有在手動點擊查詢時才滾動，自動載入時不滾動
         if (document.activeElement === btnQuery) {
             queryResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // 無論如何都顯示歷史申請紀錄
         renderMyRequests();
     }
 
     function renderQueryResult() {
         queryResultBody.innerHTML = matchedRecords.map(r => {
             const st = computeQslStatus(r);
+            // 判斷是否已申請過
             const already = (r.requests || []).some(req => req.userCall === queryCallsign);
-            const checked = selectedRecordIds.has(r.id) ? 'checked' : '';
-            const disabled = already ? 'disabled' : '';
-            const alreadyTag = already ? ' <span class="badge-requested">已申請</span>' : '';
+            
+            // 如果已經申請過，就不顯示核取方塊，改顯示「已申請」
+            let checkboxHtml = '';
+            if (already) {
+                checkboxHtml = '<span style="color:#7b3fa0; font-size:0.8rem; font-weight:600;">已申請</span>';
+            } else {
+                const checked = selectedRecordIds.has(r.id) ? 'checked' : '';
+                checkboxHtml = `<input type="checkbox" class="record-checkbox" data-id="${r.id}" ${checked}>`;
+            }
+
+            const alreadyTag = already ? ' <span class="badge-requested" style="display:none;">已申請</span>' : '';
             
             return `<tr>
-                <td><input type="checkbox" class="record-checkbox" data-id="${r.id}" ${checked} ${disabled}></td>
+                <td style="text-align:center;">${checkboxHtml}</td>
                 <td>${escapeHtml(r.date)}</td>
                 <td><strong>${escapeHtml(r.call)}</strong></td>
                 <td>${escapeHtml(r.band)}</td>
@@ -95,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>`;
         }).join('');
 
+        // 只有未申請的才會綁定勾選事件
         document.querySelectorAll('.record-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
                 const id = Number(this.dataset.id);
@@ -113,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            const boxes = document.querySelectorAll('.record-checkbox:not(:disabled)');
+            const boxes = document.querySelectorAll('.record-checkbox');
             boxes.forEach(cb => {
                 cb.checked = this.checked;
                 const id = Number(cb.dataset.id);
