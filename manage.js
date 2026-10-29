@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含搜尋與 LoTW 同步)
+   manage.js - 管理員後台完整邏輯 (包含 LoTW 同步與 ADIF 防重複)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -70,7 +70,7 @@ function getDaysSince(dateString) {
 }
 
 // ============================================================
-// 登入與登出
+// 登入與登出 (使用 Supabase Auth)
 // ============================================================
 async function login() {
     const email = document.getElementById('adminUser').value.trim();
@@ -301,11 +301,21 @@ async function renderAdminTable() {
 
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
-    const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
+    
+    const updateData = { status: newStatus };
+    
+    // 🌟 如果改成「已交換完成」，就記錄當下時間
+    if (newStatus === 'completed') {
+        updateData.completedDate = new Date().toISOString();
+    } else {
+        updateData.completedDate = null; // 如果取消完成，就清空時間
+    }
+
+    const { error } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     if (error) { showToast('❌ 更新失敗'); } 
     else { 
         showToast('✅ 狀態已更新'); 
-        allRecords = []; // 清空快取，強制重新抓取資料
+        allRecords = []; // 清空快取
         renderAdminTable();
     }
 }
@@ -527,6 +537,7 @@ async function uploadADIF() {
                     if (isDuplicate) { duplicateCount++; continue; }
 
                     let noteStr = p.note || '';
+                    // 🌟 匯入時固定寫入「衛星通聯」，顯示時再靠 script.js 翻譯成日文「衛星通信」
                     if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
                     if (p.freq) noteStr = `FREQ:${p.freq} ${noteStr}`.trim();
 
