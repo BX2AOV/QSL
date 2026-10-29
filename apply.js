@@ -9,7 +9,7 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentLang = localStorage.getItem('site_lang') || 'zh';
 
 // ============================================================
-// 🌟 核心：精準點擊哪個語言就切換
+// 核心：精準點擊哪個語言就切換
 // ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
@@ -235,18 +235,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;" data-zh="已申請" data-cn="已申请" data-en="Requested" data-ja="申請済">已申請</span>` 
                 : `<input type="checkbox" class="record-checkbox" data-id="${r.id}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             
-            // 🌟 處理備註欄的衛星翻譯 (日文顯示衛星通信)
+            // 🌟 處理頻段與頻率的顯示
+            let displayBand = r.band;
             let displayNote = r.note || '—';
+
             if (r.note) {
+                const satMatch = r.note.match(/^\[(.*?)\]/);
+                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
+                    displayBand = satMatch[1]; // 衛星名稱
+                } else {
+                    const freqMatch = r.note.match(/FREQ:([\d.]+)/);
+                    if (freqMatch && freqMatch[1]) {
+                        displayBand = freqMatch[1]; // 頻率
+                    }
+                }
+                
                 const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
                 displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim();
+                displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); // 隱藏 FREQ 字眼
             }
 
             return `<tr>
                 <td style="text-align:center;">${actionHtml}</td>
                 <td>${escapeHtml(r.date)}</td>
                 <td><strong>${escapeHtml(r.call)}</strong></td>
-                <td>${escapeHtml(r.band)}</td>
+                <td>${escapeHtml(displayBand)}</td> 
                 <td>${escapeHtml(r.mode)}</td>
                 <td><span class="${st.cls}">${st.text}</span></td>
                 <td>${escapeHtml(displayNote)}</td>
