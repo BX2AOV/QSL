@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (自動壓縮 + 防重複版)
+   manage.js - 管理員後台完整邏輯 (自動壓縮 + 防重複 + 寄出追蹤)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -57,6 +57,16 @@ function timeToMinutes(timeStr) {
     if (!timeStr || !timeStr.includes(':')) return 0;
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
+}
+
+// 計算距離寄出已經過了幾天
+function getDaysSince(dateString) {
+    if (!dateString) return null;
+    const sentDate = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today - sentDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
 }
 
 // ============================================================
@@ -187,8 +197,24 @@ async function renderAdminTable() {
         const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.receivedImg}')">` : '';
         const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
 
+        // 🌟 處理「發出 QSL」圖片與 30 天提醒
         const sentImgHtml = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.sentImg}')">` : '';
         const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+        
+        let sentReminderHtml = '';
+        if (r.sentImg && r.sentDate) {
+            const days = getDaysSince(r.sentDate);
+            if (days >= 30) {
+                sentReminderHtml = `
+                <div style="font-size:0.75rem; color:#b45f06; background:#fff0d9; padding:4px 8px; border-radius:6px; margin-top:6px; display:inline-block; font-weight:bold; border:1px solid #fce4c2;">
+                    ⏰ 已寄出 ${days} 天，請聯繫確認對方是否收到
+                </div>`;
+            } else {
+                sentReminderHtml = `<div style="font-size:0.7rem; color:#7e96af; margin-top:4px;">寄出天數：${days} 天</div>`;
+            }
+        } else if (r.sentImg && !r.sentDate) {
+            sentReminderHtml = `<div style="font-size:0.7rem; color:#a0b2c6; margin-top:4px;">無寄出時間紀錄</div>`;
+        }
 
         const recvHtml = `
             <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
@@ -204,7 +230,8 @@ async function renderAdminTable() {
                 <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
                 ${sentImgHtml}
                 ${sentBtnHtml}
-            </div>`;
+            </div>
+            ${sentReminderHtml}`;
 
         const currentStatus = r.status || 'none';
         const statusSelect = `
@@ -259,8 +286,11 @@ async function deleteQslImage(recordId, type) {
         const fileName = imgUrl.split('/').pop();
         if (fileName) await _supabase.storage.from('qsl-images').remove([fileName]);
     } catch (e) { console.error('Storage 刪除失敗:', e); }
+    
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = null;
+    if (type === 'sent') updateData.sentDate = null; // 如果刪除發出圖片，順便清空時間
+
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     if (dbError) { showToast('❌ 刪除失敗'); } 
     else { showToast('🗑️ 圖片已刪除'); renderAdminTable(); calculateStorageUsage(); }
@@ -295,14 +325,13 @@ async function rejectRequest(recordId, reqIndex) {
 }
 
 // ============================================================
-// 🌟 圖片上傳與自動壓縮 (Canvas)
+// 🌟 圖片上傳與自動壓縮 (包含記錄寄出時間)
 // ============================================================
 async function handleQslImageUpload(recordId, type, event) {
     const file = event.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { showToast('⚠️ 請上傳圖片'); return; }
     
-    // 放寬原始檔案限制到 10MB，因為我們會壓縮
     if (file.size > 10 * 1024 * 1024) { showToast('⚠️ 圖片超過 10MB，請重新選擇'); event.target.value = ''; return; }
 
     showToast('⏳ 圖片壓縮與上傳中...');
@@ -311,12 +340,10 @@ async function handleQslImageUpload(recordId, type, event) {
     reader.onload = function(e) {
         const img = new Image();
         img.onload = async function() {
-            // 建立 Canvas 進行壓縮
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
             
-            // 設定最大寬度為 1200px，保持比例
             const MAX_WIDTH = 1200;
             if (width > MAX_WIDTH) {
                 height = Math.round((height * MAX_WIDTH) / width);
@@ -325,21 +352,16 @@ async function handleQslImageUpload(recordId, type, event) {
             
             canvas.width = width;
             canvas.height = height;
-            
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             
-            // 轉成 JPEG，品質設為 0.8 (大約只剩 200KB 左右)
             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-            
-            // 將 Base64 轉回 Blob (檔案格式) 以便上傳到 Storage
             const res = await fetch(compressedBase64);
             const blob = await res.blob();
             
             const fileExt = 'jpg';
             const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
-            // 上傳到 Supabase Storage
             const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, blob, { contentType: 'image/jpeg' });
             
             if (uploadError) { 
@@ -348,14 +370,22 @@ async function handleQslImageUpload(recordId, type, event) {
                 return; 
             }
 
-            // 取得網址並寫入資料庫
             const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
             const updateData = {};
             updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
+            
+            // 🌟 如果是上傳「發出」的圖片，就記錄當下時間
+            if (type === 'sent') {
+                updateData.sentDate = new Date().toISOString();
+            }
 
             const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
             if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
-            else { showToast('✅ 圖片上傳成功 (已自動壓縮)'); renderAdminTable(); calculateStorageUsage(); }
+            else { 
+                showToast(type === 'sent' ? '✅ 圖片已上傳，開始計算寄出天數' : '✅ 圖片上傳成功'); 
+                renderAdminTable(); 
+                calculateStorageUsage(); 
+            }
             event.target.value = '';
         };
         img.src = e.target.result;
@@ -421,7 +451,6 @@ async function uploadADIF() {
     btnUploadADIF.disabled = true; 
     btnUploadADIF.textContent = `⏳ 讀取中...`;
 
-    // 抓取現有資料
     const { data: existingRecords, error: fetchError } = await _supabase.from('qsl_records').select('date, time, call, band, mode, note');
     if (fetchError) { showToast('❌ 無法讀取資料庫進行比對'); btnUploadADIF.disabled = false; btnUploadADIF.textContent = '全部上傳並匯入'; return; }
 
