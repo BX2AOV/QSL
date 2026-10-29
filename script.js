@@ -86,6 +86,9 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
+// ============================================================
+// 取得資料與渲染
+// ============================================================
 async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
@@ -93,6 +96,7 @@ async function fetchData() {
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
 
+    // 背景觸發清理機制
     _supabase.functions.invoke('cleanup-old-images').then(({ data, error }) => {
         if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
             console.log("🧹 背景清理通知：", data.message);
@@ -150,7 +154,7 @@ function renderMainTable() {
             const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
             
-            // 處理 LoTW 文字 (不帶任何樣式)
+            // 處理 LoTW 文字
             displayNote = displayNote.replace('[LoTW]', 'LoTW ');
         }
 
