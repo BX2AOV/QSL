@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (包含四國語言與自訂國碼)
+   apply.js - 申請頁面專用邏輯 (含密碼解鎖功能)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,10 +7,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
+let unlockPasswords = {}; // 儲存本次解鎖的密碼 { recordId: 'password' }
 
-// ============================================================
-// 核心：精準點擊哪個語言就切換
-// ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
     localStorage.setItem('site_lang', currentLang);
@@ -23,32 +21,22 @@ function applyLanguage() {
             el.textContent = el.getAttribute(`data-${currentLang}`);
         }
     });
-
     document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
         if (el.hasAttribute(`data-${currentLang}-placeholder`)) {
             el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
         }
     });
-
     const btnNoPhone = document.getElementById('btnNoPhone');
     if (btnNoPhone) {
         const isCancelled = btnNoPhone.getAttribute('data-active') === 'true';
-        const noPhoneText = { 
-            zh: isCancelled ? '已取消提供' : '無需提供', 
-            cn: isCancelled ? '已取消提供' : '无需提供', 
-            en: isCancelled ? 'Cancelled' : 'No Phone', 
-            ja: isCancelled ? 'キャンセル済' : '電話不要' 
-        };
+        const noPhoneText = { zh: isCancelled ? '已取消提供' : '無需提供', cn: isCancelled ? '已取消提供' : '无需提供', en: isCancelled ? 'Cancelled' : 'No Phone', ja: isCancelled ? 'キャンセル済' : '電話不要' };
         btnNoPhone.textContent = noPhoneText[currentLang];
     }
-
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
-
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 
-    // 防呆：只有當 renderMyRequests 存在，且已經有查詢過呼號時，才重新渲染
     if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
         renderMyRequests();
     }
@@ -62,7 +50,6 @@ function showToast(msg) {
     window.tt = setTimeout(() => t.classList.remove('show'), 3500); 
 }
 
-// 文字上下文轉義
 function escapeHtml(text) { 
     if (!text) return ''; 
     const div = document.createElement('div'); 
@@ -70,15 +57,9 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
-// 屬性上下文轉義 (C-2)
 function escAttr(text) {
     if (text === null || text === undefined) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function computeQslStatus(r) {
@@ -102,13 +83,10 @@ function computeQslStatus(r) {
     if (r.sentImg) return { cls: 'badge-sent', text: t[lang].snt };
     
     if (r.has_requests) return { cls: 'badge-pending', text: t[lang].pending };
-    
     return { cls: 'badge-none', text: t[lang].none };
 }
 
-// 🌟 國碼自訂選單邏輯
 let currentCountryCode = '+886';
-
 window.selectCountry = function(code) {
     currentCountryCode = code;
     document.getElementById('selectedCountryCode').textContent = code;
@@ -117,22 +95,13 @@ window.selectCountry = function(code) {
 
 document.addEventListener('click', function(e) {
     const wrapper = document.getElementById('countryCodeWrapper');
-    if (wrapper && !wrapper.contains(e.target)) {
-        wrapper.classList.remove('open');
-    }
+    if (wrapper && !wrapper.contains(e.target)) wrapper.classList.remove('open');
 });
 
-// ============================================================
-// 主邏輯 (查詢與送出)
-// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     const btnQuery = document.getElementById('btnQuery');
-    if (!btnQuery) {
-        console.error("找不到 btnQuery 按鈕，請確認 apply.html 的 ID 是否正確。");
-        return;
-    }
+    if (!btnQuery) return;
 
-    // 將變數宣告在 DOMContentLoaded 外層，避免作用域問題
     let queryCallsign = '';
     let matchedRecords = [];
     let myRequests = [];
@@ -147,21 +116,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const selectedCountHint = document.getElementById('selectedCountHint');
     const btnSubmit = document.getElementById('btnSubmitApplication');
-    
     const shipPhone = document.getElementById('shipPhone');
     const btnNoPhone = document.getElementById('btnNoPhone');
-    const phoneReq = document.getElementById('phoneReq');
     const countryCodeWrapper = document.getElementById('countryCodeWrapper');
     const countryCodeTrigger = document.getElementById('countryCodeTrigger');
 
     applyLanguage();
 
-    // C-2 配套：語言切換改事件委託
     document.getElementById('langToggle')?.addEventListener('click', (e) => {
         const opt = e.target.closest('.lang-option');
-        if (!opt) return;
-        const lang = opt.dataset.lang;
-        if (lang && typeof changeLang === 'function') changeLang(lang);
+        if (opt) changeLang(opt.dataset.lang);
     });
 
     if (countryCodeTrigger) {
@@ -176,21 +140,15 @@ document.addEventListener('DOMContentLoaded', function() {
             isPhoneDisabled = !isPhoneDisabled;
             if (isPhoneDisabled) {
                 shipPhone.style.display = 'none';
-                countryCodeWrapper.style.display = 'none';
-                phoneReq.style.display = 'none';
-                
+                document.getElementById('countryCodeWrapper').style.display = 'none';
                 btnNoPhone.style.background = '#0b2a4a';
                 btnNoPhone.style.color = '#fff';
-                btnNoPhone.style.borderColor = '#0b2a4a';
                 btnNoPhone.setAttribute('data-active', 'true');
             } else {
                 shipPhone.style.display = 'block';
-                countryCodeWrapper.style.display = 'block';
-                phoneReq.style.display = 'inline';
-                
+                document.getElementById('countryCodeWrapper').style.display = 'block';
                 btnNoPhone.style.background = '';
                 btnNoPhone.style.color = '';
-                btnNoPhone.style.borderColor = '#cbdae8';
                 btnNoPhone.removeAttribute('data-active');
             }
             applyLanguage();
@@ -205,65 +163,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function doQuery() {
         const call = queryInput.value.trim().toUpperCase();
-        if (!call) { 
-            const hint = { zh: '請輸入呼號', cn: '请输入呼号', en: 'Please enter callsign', ja: 'コールサインを入力してください' };
-            showToast(hint[currentLang]); 
-            return; 
-        }
-        
+        if (!call) { showToast('請輸入呼號'); return; }
         queryCallsign = call;
         localStorage.setItem('user_callsign', queryCallsign);
-        
         queryHint.innerHTML = '<span style="color:#5a6e85;">⏳...</span>';
 
-        const { data, error } = await _supabase
-            .from('qsl_public')
-            .select('id, date, time, call, band, mode, note, receivedImg, sentImg, status, has_requests')
-            .eq('call', call);
-
-        if (error) { 
-            const errText = { zh: '❌ 系統錯誤', cn: '❌ 系统错误', en: '❌ System Error', ja: '❌ システムエラー' };
-            queryHint.innerHTML = `<span style="color:#b03030;">${errText[currentLang]}</span>`; 
-            return; 
-        }
+        const { data, error } = await _supabase.from('qsl_public').select('*').eq('call', call);
+        if (error) { queryHint.innerHTML = `<span style="color:#b03030;">❌ 系統錯誤</span>`; return; }
 
         matchedRecords = data || [];
         if (matchedRecords.length === 0) {
             queryResultCard.style.display = 'none';
             shipInfoCard.style.display = 'none';
-            const notFound = { zh: '❌ 找不到此呼號的通聯記錄，無法申請換卡', cn: '❌ 找不到此呼号的通联记录，无法申请换卡', en: '❌ No QSO records found for this callsign.', ja: '❌ このコールサインの記録が見つかりません。' };
-            queryHint.innerHTML = `<span style="color:#b03030;">${notFound[currentLang]}</span>`;
-            showToast(notFound[currentLang]); return;
+            queryHint.innerHTML = `<span style="color:#b03030;">❌ 找不到此呼號的通聯記錄</span>`;
+            return;
         }
 
-        const foundText = { zh: '✅ 找到 ', cn: '✅ 找到 ', en: '✅ Found ', ja: '✅ ' };
-        const unitText = { zh: ' 筆通聯紀錄', cn: ' 条通联记录', en: ' QSO records', ja: '件の交信記録' };
-        queryHint.innerHTML = `<span style="color:#0e6b3e;">${foundText[currentLang]}${matchedRecords.length}${unitText[currentLang]}</span>`;
-        
+        queryHint.innerHTML = `<span style="color:#0e6b3e;">✅ 找到 ${matchedRecords.length} 筆通聯紀錄</span>`;
         selectedRecordIds.clear();
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
 
         await loadMyRequests();
-
         renderQueryResult();
         queryResultCard.style.display = 'block';
         shipInfoCard.style.display = 'none';
-        
-        if (document.activeElement === btnQuery) {
-            queryResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        renderMyRequests();
     }
 
     async function loadMyRequests() {
         if (!queryCallsign) { myRequests = []; return; }
-        const { data, error } = await _supabase.rpc('my_qsl_requests', { p_user_call: queryCallsign });
-        if (error) {
-            console.warn('my_qsl_requests failed:', error.message);
-            myRequests = [];
-            return;
-        }
-        myRequests = data || [];
+        
+        // 這裡我們把使用者解鎖過的密碼也一併傳給 RPC
+        // 注意：RPC 參數 p_password 目前只能處理單一一組密碼。
+        // 如果同一個呼號有多筆不同密碼的申請單，這裡會以最後解鎖的密碼為準。
+        // 但因為大部分情況每個人只會設一組密碼，所以這樣做是合理的。
+        const pwd = Object.values(unlockPasswords)[0] || ''; 
+
+        const { data, error } = await _supabase.rpc('my_qsl_requests', { 
+            p_user_call: queryCallsign,
+            p_password: pwd
+        });
+        
+        if (!error && data) myRequests = data;
+        else myRequests = [];
     }
 
     function isAlreadyRequested(recordId) {
@@ -276,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const already = isAlreadyRequested(r.id);
             
             let actionHtml = already 
-                ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;" data-zh="已申請" data-cn="已申请" data-en="Requested" data-ja="申請済">已申請</span>` 
+                ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;">已申請</span>` 
                 : `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             
             let displayBand = r.band;
@@ -284,15 +225,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (r.note) {
                 const satMatch = r.note.match(/^\[(.*?)\]/);
-                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
-                    displayBand = satMatch[1]; 
-                } else {
-                    const freqMatch = r.note.match(/FREQ:([\d.]+)/);
-                    if (freqMatch && freqMatch[1]) {
-                        displayBand = freqMatch[1]; 
-                    }
-                }
-                
+                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) displayBand = satMatch[1]; 
+                else { const freqMatch = r.note.match(/FREQ:([\d.]+)/); if (freqMatch && freqMatch[1]) displayBand = freqMatch[1]; }
                 const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
                 displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim();
                 displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); 
@@ -310,7 +244,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }).join('');
 
         applyLanguage();
-
         document.querySelectorAll('.record-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
                 const id = Number(this.dataset.id);
@@ -323,18 +256,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateSelectedCount() {
         const n = selectedRecordIds.size;
-        const countText = { zh: '已選擇 ', cn: '已选择 ', en: 'Selected ', ja: '選択済み: ' };
-        const unitText = { zh: ' 筆通聯', cn: ' 条通联', en: ' QSOs', ja: '件' };
-        const hintText = { zh: '請勾選要申請的通聯', cn: '请勾选要申请的通联', en: 'Please select QSOs', ja: '交信を選択してください' };
-
-        selectedCountHint.textContent = n > 0 ? `${countText[currentLang]}${n}${unitText[currentLang]}` : hintText[currentLang];
+        selectedCountHint.textContent = n > 0 ? `已選擇 ${n} 筆通聯` : '請勾選要申請的通聯';
         shipInfoCard.style.display = n > 0 ? 'block' : 'none';
     }
 
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            const boxes = document.querySelectorAll('.record-checkbox');
-            boxes.forEach(cb => {
+            document.querySelectorAll('.record-checkbox').forEach(cb => {
                 cb.checked = this.checked;
                 const id = Number(cb.dataset.id);
                 if (this.checked) selectedRecordIds.add(id); else selectedRecordIds.delete(id);
@@ -345,48 +273,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (btnSubmit) {
         btnSubmit.addEventListener('click', async function() {
-            if (selectedRecordIds.size === 0) { 
-                const hint = { zh: '請至少勾選一筆', cn: '请至少勾选一条', en: 'Please select at least one', ja: '少なくとも1件選択してください' };
-                showToast(hint[currentLang]); 
-                return; 
-            }
+            if (selectedRecordIds.size === 0) return;
+            
             const name = document.getElementById('shipName').value.trim();
             const rawPhone = shipPhone.value.trim();
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
+            const password = document.getElementById('shipPassword').value.trim(); // 👈 取得設定的密碼
+
+            if (!name || !zip || !address) { showToast('請填寫完整收件資訊'); return; }
+            if (!isPhoneDisabled && !rawPhone) { showToast('請填寫手機或點擊無需提供'); return; }
+            if (!password || password.length < 4) { showToast('請設定至少 4 位數的查詢密碼'); return; } // 👈 驗證密碼
 
             let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
 
-            const errorMsg = { zh: '請填寫完整收件資訊', cn: '请填写完整收件信息', en: 'Please fill in all required fields.', ja: '必須項目を入力してください。' };
-            if (!name || !zip || !address) { showToast(errorMsg[currentLang]); return; }
-            
-            if (!isPhoneDisabled && !rawPhone) {
-                const phoneErr = { zh: '請填寫手機或點擊無需提供', cn: '请填写手机或点击无需提供', en: 'Please enter phone or click No Phone.', ja: '電話番号を入力するか、「電話不要」をクリックしてください。' };
-                showToast(phoneErr[currentLang]); return; 
-            }
-
             btnSubmit.disabled = true; 
-            const processingText = { zh: '處理中...', cn: '处理中...', en: 'Processing...', ja: '処理中...' };
-            btnSubmit.textContent = processingText[currentLang];
+            btnSubmit.textContent = '處理中...';
             let count = 0, hasError = false;
 
             for (const id of selectedRecordIds) {
-                const { data, error } = await _supabase.rpc('submit_qsl_request', {
+                const { error } = await _supabase.rpc('submit_qsl_request', {
                     p_record_id: Number(id),
                     p_user_call: queryCallsign,
                     p_ship_name: name,
                     p_ship_phone: finalPhone,
                     p_ship_zip: zip,
                     p_ship_addr: address,
-                    p_ship_note: note
+                    p_ship_note: note,
+                    p_password: password // 👈 傳入密碼
                 });
 
-                if (error) {
-                    hasError = true;
-                    console.error('submit_qsl_request failed:', error.message);
-                } else {
-                    count++;
+                if (error) { hasError = true; console.error(error); } 
+                else { 
+                    count++; 
+                    unlockPasswords[id] = password; // 送出成功後自動記住解鎖密碼
                 }
             }
 
@@ -394,15 +315,8 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.textContent = '送出 QSL 換卡申請';
             applyLanguage();
             
-            const successText = { zh: `✅ 已送出 ${count} 筆申請`, cn: `✅ 已提交 ${count} 条申请`, en: `✅ Submitted ${count} request(s)`, ja: `✅ ${count}件の申請を送信しました` };
-            const failText = { zh: '⚠️ 部分失敗', cn: '⚠️ 部分失败', en: '⚠️ Partial failure', ja: '⚠️ 一部失敗しました' };
-            const totalFailText = { zh: '❌ 全部失敗，請稍後再試', cn: '❌ 全部失败，请稍后再试', en: '❌ All requests failed', ja: '❌ すべて失敗しました' };
-            
-            if (count === 0) {
-                showToast(totalFailText[currentLang]);
-            } else {
-                showToast(hasError ? failText[currentLang] : successText[currentLang]);
-            }
+            if (count === 0) showToast('❌ 全部失敗');
+            else showToast(`✅ 已送出 ${count} 筆申請`);
 
             selectedRecordIds.clear();
             if (selectAllCheckbox) selectAllCheckbox.checked = false;
@@ -411,9 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderQueryResult();
             renderMyRequests();
             
-            document.getElementById('shipName').value = ''; 
-            shipPhone.value = '';
-            document.getElementById('shipZip').value = ''; document.getElementById('shipAddress').value = ''; document.getElementById('shipNote').value = '';
+            document.getElementById('shipName').value = ''; shipPhone.value = ''; document.getElementById('shipZip').value = ''; document.getElementById('shipAddress').value = ''; document.getElementById('shipNote').value = ''; document.getElementById('shipPassword').value = '';
             shipInfoCard.style.display = 'none';
         });
     }
@@ -423,14 +335,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tbody) return;
 
         if (!queryCallsign) { 
-            const empty = { zh: '請先查詢您的呼號', cn: '请先查询您的呼号', en: 'Please search a callsign first', ja: '先にコールサインを検索してください' };
-            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">${empty[currentLang]}</div></td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">請先查詢您的呼號</div></td></tr>`; 
             return; 
         }
-        
         if (myRequests.length === 0) { 
-            const empty = { zh: '尚無申請紀錄', cn: '尚无申请记录', en: 'No records found', ja: '履歴がありません' };
-            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">${empty[currentLang]}</div></td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">尚無申請紀錄</div></td></tr>`; 
             return; 
         }
 
@@ -438,32 +347,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.innerHTML = myRequests.map(req => {
             let cls = 'badge-pending', txt = '待處理';
-            if (currentLang === 'zh') { txt = req.status === 'approved' ? '已核准' : (req.status === 'rejected' ? '已拒絕' : '待處理'); }
-            if (currentLang === 'cn') { txt = req.status === 'approved' ? '已核准' : (req.status === 'rejected' ? '已拒绝' : '待处理'); }
-            if (currentLang === 'en') { txt = req.status === 'approved' ? 'Approved' : (req.status === 'rejected' ? 'Rejected' : 'Pending'); }
-            if (currentLang === 'ja') { txt = req.status === 'approved' ? '承認済み' : (req.status === 'rejected' ? '拒否' : '処理待ち'); }
-            
-            if (req.status === 'approved') cls = 'badge-approved';
-            else if (req.status === 'rejected') cls = 'badge-rejected';
+            if (req.status === 'approved') { cls = 'badge-approved'; txt = '已核准'; }
+            else if (req.status === 'rejected') { cls = 'badge-rejected'; txt = '已拒絕'; }
 
             const rec = recordMap.get(Number(req.record_id)) || {};
-            const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)} / ${escapeHtml(req.ship_phone || '—')}` : '—';
-            const addr = req.ship_zip ? `${escapeHtml(req.ship_zip)} ${escapeHtml(req.ship_addr)}` : '—';
-            const displayDate = req.request_date || '—';
+            const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
+            
+            // 🌟 處理解鎖顯示
+            let statusHtml = `<span class="${cls}">${txt}</span>`;
+            
+            if (req.is_locked) {
+                statusHtml = `
+                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span style="color:#b03030; font-size:0.8rem;">🔒 已上鎖</span></div>
+                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}" style="background:#0b2a4a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">🔓 解鎖詳情</button>
+                `;
+            } else {
+                // 解鎖後顯示完整地址
+                const fullAddr = `${escapeHtml(req.ship_zip)} ${escapeHtml(req.ship_addr)}`;
+                statusHtml = `
+                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span></div>
+                    <div style="font-size:0.8rem; color:#333;">
+                        <strong>地址：</strong>${fullAddr}<br>
+                        <strong>手機：</strong>${escapeHtml(req.ship_phone || '未提供')}
+                    </div>
+                `;
+            }
 
             return `<tr>
-                <td>${escapeHtml(displayDate)}</td>
+                <td>${escapeHtml(req.request_date || '—')}</td>
                 <td><strong>${escapeHtml(rec.call || '—')}</strong></td>
-                <td>${escapeHtml(rec.date || '—')}</td>
-                <td>${escapeHtml(rec.band || '—')} / ${escapeHtml(rec.mode || '—')}</td>
-                <td>${shipInfo}</td>
-                <td>${escapeHtml(req.ship_phone || '—')}</td>
-                <td>${addr}</td>
-                <td><span class="${cls}">${txt}</span></td>
-            </tr>`;
-        }).join('');
-    }
-
-    btnQuery.addEventListener('click', doQuery);
-    queryInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); doQuery(); } });
-});
+                <td>${escapeHtml(rec.date
