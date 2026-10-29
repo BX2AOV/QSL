@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含 LoTW 同步與 ADIF 防重複)
+   manage.js - 管理員後台完整邏輯 (包含搜尋、LoTW同步與 30 天計時)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -299,12 +299,13 @@ async function renderAdminTable() {
     }).join('');
 }
 
+// 🌟 這裡加入了 completedDate 的記錄邏輯
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     
     const updateData = { status: newStatus };
     
-    // 🌟 如果改成「已交換完成」，就記錄當下時間
+    // 如果改成「已交換完成」，就記錄當下時間
     if (newStatus === 'completed') {
         updateData.completedDate = new Date().toISOString();
     } else {
@@ -537,7 +538,7 @@ async function uploadADIF() {
                     if (isDuplicate) { duplicateCount++; continue; }
 
                     let noteStr = p.note || '';
-                    // 🌟 匯入時固定寫入「衛星通聯」，顯示時再靠 script.js 翻譯成日文「衛星通信」
+                    // 匯入時固定寫入「衛星通聯」，顯示時再靠 script.js 翻譯成日文「衛星通信」
                     if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
                     if (p.freq) noteStr = `FREQ:${p.freq} ${noteStr}`.trim();
 
@@ -628,12 +629,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
 
-    // 👇 管理後台搜尋框事件 👇
+    // 管理後台搜尋框事件
     document.getElementById('adminSearchInput')?.addEventListener('input', function() {
         renderAdminTable();
     });
 
-    // 👇 呼叫 swift-task 按鈕事件 👇
+    // 呼叫 swift-task 按鈕事件
     document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
         const btn = this;
         btn.disabled = true;
