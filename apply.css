@@ -1,1 +1,87 @@
-1
+/* ============================================================
+   apply.html 專用樣式 - 收件資訊表單優化
+   ============================================================ */
+
+/* 表單容器 */
+.ship-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* 欄位之間的間距 */
+    max-width: 100%;
+}
+
+/* 單一欄位群組 */
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* 標籤與輸入框的距離 */
+}
+
+/* 標籤文字 */
+.form-row label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a3a5c;
+    letter-spacing: 0.5px;
+}
+
+/* 必填星號 */
+.form-row label .required {
+    color: #e53e3e;
+    margin-left: 2px;
+}
+
+/* 輸入框美化 */
+.form-row input {
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 16px; /* 現代感的大圓角 */
+    border: 1.5px solid #cbdae8;
+    font-size: 1rem;
+    color: #2b4056;
+    background-color: #f8fbfe;
+    outline: none;
+    transition: all 0.25s ease;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+    font-family: inherit;
+}
+
+/* 輸入框 Focus (點擊時) 效果 */
+.form-row input:focus {
+    border-color: #0066cc;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+}
+
+/* Placeholder 提示文字顏色 */
+.form-row input::placeholder {
+    color: #a0b2c6;
+    font-weight: 400;
+}
+
+/* ============================================================
+   排版優化：讓手機與郵遞區號並排
+   ============================================================ */
+.row-group {
+    display: flex;
+    gap: 16px;
+}
+
+.row-group .form-row {
+    flex: 1; /* 讓兩個欄位等寬 */
+}
+
+/* 在大螢幕上限制手機和郵遞區號的寬度，避免太長 */
+@media (min-width: 600px) {
+    #shipPhone, #shipZip {
+        max-width: 250px;
+    }
+}
+
+/* 手機版自動變回上下排列 */
+@media (max-width: 500px) {
+    .row-group {
+        flex-direction: column;
+        gap: 18px;
+    }
+}1
