@@ -1,17 +1,15 @@
 /* ============================================================
-   apply.html 專用邏輯（完全獨立，不依賴 script.js）
+   apply.html 專用邏輯：串接 Supabase 雲端資料庫
    ============================================================ */
 
-// ---------- 模擬資料庫 ----------
-var qslRecords = [
-    { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', note: '等待回卡', receivedImg: null, sentImg: null, requests: [] },
-    { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
-    { id: 3, date: '2025-01-15', call: 'BM2ABC', band: '40m', mode: 'CW', note: '已寄出', receivedImg: null, sentImg: null, requests: [] },
-    { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', note: '透過 Bureau', receivedImg: null, sentImg: null, requests: [] },
-    { id: 5, date: '2025-01-20', call: 'JP1XYZ', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] }
-];
+// 1. 初始化 Supabase
+const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 
-// ---------- 工具函式 ----------
+// 檢查是否有正確載入 Supabase CDN
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ---------- 全域工具函式 ----------
 function showToast(msg) {
     var toastEl = document.getElementById('toast');
     if (!toastEl) return;
@@ -57,14 +55,29 @@ function computeQslStatus(r) {
         var btnSubmit = document.getElementById('btnSubmitApplication');
 
         // ---------- 查詢 ----------
-        function doQuery() {
+        async function doQuery() {
             var call = queryInput.value.trim().toUpperCase();
             if (!call) {
                 showToast('請輸入呼號');
                 return;
             }
             queryCallsign = call;
-            matchedRecords = qslRecords.filter(function(r) { return r.call === call; });
+            queryHint.innerHTML = '<span style="color:#5a6e85;">⏳ 查詢中...</span>';
+
+            // 從 Supabase 抓取資料
+            const { data, error } = await _supabase
+                .from('qsl_records')
+                .select('*')
+                .eq('call', call);
+
+            if (error) {
+                console.error('查詢失敗', error);
+                queryHint.innerHTML = '<span style="color:#b03030;">❌ 系統錯誤，請稍後再試</span>';
+                showToast('資料庫連線失敗');
+                return;
+            }
+
+            matchedRecords = data || [];
 
             if (matchedRecords.length === 0) {
                 queryResultCard.style.display = 'none';
@@ -77,6 +90,12 @@ function computeQslStatus(r) {
             queryHint.innerHTML = '<span style="color:#0e6b3e;">✅ 找到 ' + matchedRecords.length + ' 筆通聯紀錄</span>';
             selectedRecordIds.clear();
             if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            
+            // 確保舊資料不會是 null (資料庫建表時預設可能是 null)
+            matchedRecords.forEach(r => {
+                if (!r.requests) r.requests = [];
+            });
+
             renderQueryResult();
             queryResultCard.style.display = 'block';
             shipInfoCard.style.display = 'none';
@@ -138,7 +157,7 @@ function computeQslStatus(r) {
 
         // ---------- 送出申請 ----------
         if (btnSubmit) {
-            btnSubmit.addEventListener('click', function() {
+            btnSubmit.addEventListener('click', async function() {
                 if (!queryCallsign) { showToast('請先查詢呼號'); return; }
                 if (selectedRecordIds.size === 0) { showToast('請至少勾選一筆通聯'); return; }
 
@@ -155,13 +174,20 @@ function computeQslStatus(r) {
                 if (!/^\d{3,6}$/.test(zip)) { showToast('郵遞區號格式錯誤（3-6 位數字）'); return; }
                 if (!address) { showToast('請填寫地址'); return; }
 
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = '處理中...';
+
                 var count = 0;
-                selectedRecordIds.forEach(function(id) {
-                    var record = qslRecords.find(function(r) { return r.id === id; });
-                    if (!record) return;
-                    if ((record.requests || []).some(function(req) { return req.userCall === queryCallsign; })) return;
-                    if (!record.requests) record.requests = [];
-                    record.requests.push({
+                var hasError = false;
+
+                // 逐筆更新資料庫
+                for (const id of selectedRecordIds) {
+                    var record = matchedRecords.find(r => r.id === id);
+                    if (!record) continue;
+                    if (record.requests.some(req => req.userCall === queryCallsign)) continue;
+
+                    // 新增這筆申請到陣列
+                    var newReq = {
                         userCall: queryCallsign,
                         requestDate: new Date().toISOString().slice(0, 10),
                         status: 'pending',
@@ -170,15 +196,40 @@ function computeQslStatus(r) {
                         shipZip: zip,
                         shipAddress: address,
                         shipNote: note
-                    });
-                    count++;
-                });
+                    };
+                    
+                    var updatedRequests = [...record.requests, newReq];
 
-                showToast('✅ 已送出 ' + count + ' 筆 QSL 換卡申請');
+                    // 寫入 Supabase
+                    const { error } = await _supabase
+                        .from('qsl_records')
+                        .update({ requests: updatedRequests })
+                        .eq('id', id);
+
+                    if (error) {
+                        console.error('送出失敗', error);
+                        hasError = true;
+                    } else {
+                        record.requests = updatedRequests;
+                        count++;
+                    }
+                }
+
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = '送出 QSL 換卡申請';
+
+                if (hasError) {
+                    showToast('⚠️ 部分申請送出失敗，請稍後再試');
+                } else {
+                    showToast('✅ 已成功送出 ' + count + ' 筆 QSL 換卡申請');
+                }
+
                 selectedRecordIds.clear();
                 if (selectAllCheckbox) selectAllCheckbox.checked = false;
                 renderQueryResult();
                 renderMyRequests();
+                
+                // 清空表單
                 document.getElementById('shipName').value = '';
                 document.getElementById('shipPhone').value = '';
                 document.getElementById('shipZip').value = '';
@@ -199,7 +250,7 @@ function computeQslStatus(r) {
             }
 
             var list = [];
-            qslRecords.forEach(function(r) {
+            matchedRecords.forEach(function(r) {
                 (r.requests || []).forEach(function(req) {
                     if (req.userCall === queryCallsign) list.push(Object.assign({}, req, { record: r }));
                 });
