@@ -14,9 +14,6 @@ const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 let selectedAdifFile = null;
 
-// 紀錄網頁載入的時間 (備用)
-const pageLoadTime = new Date();
-
 // 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
@@ -86,30 +83,50 @@ function checkUser() {
 }
 
 // ============================================================
-// 網頁版本檢測 (CF 更新檢查) - 改用檔案長度比對
+// 網頁版本檢測 (CF 更新檢查) - 核心檔案大小比對法
 // ============================================================
 async function checkUpdate() {
     const statusEl = document.getElementById('updateStatus');
     const btn = document.getElementById('btnCheckUpdate');
     
-    statusEl.innerHTML = '⏳ 正在向 Cloudflare 檢查最新版本...';
+    statusEl.innerHTML = '⏳ 正在向 Cloudflare 檢查檔案更新...';
     btn.disabled = true;
 
     try {
-        // 1. 取得目前網頁的原始碼長度
-        const currentHtmlLength = document.documentElement.outerHTML.length;
+        // 我們要檢查的核心檔案清單 (如果你有其他 JS/CSS 也可以加進來)
+        const filesToCheck = ['manage.js', 'manage.html', 'style.css'];
+        let totalServerBytes = 0;
 
-        // 2. 去向伺服器要最新的 manage.html (加上時間戳避開快取)
-        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { cache: 'no-store' });
-        const text = await response.text();
-        
-        // 3. 比對伺服器檔案長度與目前畫面的長度 (誤差超過 50 個字元就當作有更新)
-        if (Math.abs(text.length - currentHtmlLength) > 50) {
-            statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案已更新。<br>請重新整理載入最新畫面。`;
-            statusEl.style.color = '#0e6b3e';
-        } else {
-            statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 伺服器與本地檔案一致。`;
+        // 1. 去伺服器抓取這些檔案的最新大小 (加上時間戳避開快取)
+        for (const file of filesToCheck) {
+            const response = await fetch(`${file}?t=${new Date().getTime()}`, { cache: 'no-store' });
+            const text = await response.text();
+            totalServerBytes += text.length;
+        }
+
+        // 2. 將伺服器最新的大小存到 sessionStorage (只在這次打開網頁時記住)
+        const lastKnownBytes = sessionStorage.getItem('lastServerBytes');
+
+        if (!lastKnownBytes) {
+            // 如果是剛打開網頁第一次點擊，先記錄下來，作為基準
+            sessionStorage.setItem('lastServerBytes', totalServerBytes);
+            statusEl.innerHTML = `📌 <b>已建立基準點</b><br>目前檔案總大小：${(totalServerBytes / 1024).toFixed(1)} KB<br>未來如果檔案更新，這裡會通知您。`;
             statusEl.style.color = '#5a6e85';
+        } else {
+            // 3. 進行比對
+            const diff = Math.abs(totalServerBytes - parseInt(lastKnownBytes, 10));
+            
+            // 誤差超過 10 個位元組 (Bytes) 就當作有更新
+            if (diff > 10) {
+                statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案大小已改變。<br>請重新整理載入最新畫面。`;
+                statusEl.style.color = '#0e6b3e';
+                
+                // 更新基準點，避免重新整理前無限跳出
+                sessionStorage.setItem('lastServerBytes', totalServerBytes);
+            } else {
+                statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>核心檔案大小未改變。`;
+                statusEl.style.color = '#5a6e85';
+            }
         }
     } catch (error) {
         console.error('檢查更新失敗', error);
