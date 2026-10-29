@@ -25,6 +25,7 @@
             </div>
         </header>
 
+        <!-- 登入區塊 -->
         <section class="card" id="loginSection">
             <h2>🔐 管理員登入</h2>
             <div class="card-sub">請輸入管理員帳號密碼。</div>
@@ -35,6 +36,7 @@
             </div>
         </section>
 
+        <!-- 管理後台區塊 -->
         <section class="card" id="adminPanel" style="display:none;">
             <div class="flex-between" style="margin-bottom:16px;">
                 <h2>⚙️ 管理後台</h2>
@@ -43,6 +45,7 @@
             <div class="card-sub">在這裡上傳 ADIF 通聯紀錄，或手動新增單筆資料。</div>
 
             <div class="admin-upload-grid">
+                <!-- ADIF 上傳 -->
                 <div>
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (ADIF)</h3>
                     <div class="upload-zone" style="padding:20px;">
@@ -53,6 +56,8 @@
                     </div>
                     <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
                 </div>
+                
+                <!-- 手動新增 -->
                 <div>
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">✏️ 手動新增單筆</h3>
                     <div class="manual-form">
@@ -65,10 +70,33 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 管理紀錄與申請列表 -->
+            <h3 style="font-size:1.1rem; margin-top: 30px; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
+            <div class="table-wrapper">
+                <table style="min-width:1000px;">
+                    <thead>
+                        <tr>
+                            <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
+                            <th>使用者申請 (地址/電話/狀態)</th>
+                            <th>通聯圖片</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manageTableBody">
+                        <tr><td colspan="6"><div class="empty-state">載入中...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
+    </div>
+
+    <!-- 燈箱 (點擊圖片放大) -->
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" id="lightboxClose">×</span>
+        <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
     <div id="toast" class="toast">操作成功</div>
     <script src="manage.js"></script>
 </body>
-</html>1
+</html>
