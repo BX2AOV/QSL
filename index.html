@@ -4,6 +4,151 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BX2AOV QSL confirm</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部橫列（無登入按鈕） -->
+        <header class="header-bar">
+            <div class="logo-area">
+                <span class="logo-icon">📡</span>
+                <span>BX2AOV QSL confirm</span>
+                <span class="callsign-badge">BX2AOV</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#dashboard" class="active">總覽</a></li>
+                <li><a href="#my-requests">我的申請</a></li>
+                <li><a href="#admin-panel">管理員</a></li>
+            </ul>
+            <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                <span class="role-badge">訪客</span>
+            </div>
+        </header>
+
+        <!-- 用戶呼號 -->
+        <section class="card" id="user-callsign-card">
+            <h2>👤 我的呼號</h2>
+            <div class="card-sub">請輸入您的呼號，以對應您的通聯紀錄並申請 QSL 換卡。</div>
+            <div class="user-callsign-area">
+                <input type="text" id="userCallsignInput" placeholder="輸入您的呼號（例如 BM2ABC）" style="text-transform:uppercase;">
+                <button class="btn btn-primary" id="btnSetCallsign">確認呼號</button>
+                <span id="currentCallsignDisplay" style="font-size:0.9rem; color:#5a6e85;"></span>
+            </div>
+        </section>
+
+        <!-- 通聯紀錄 -->
+        <section class="card" id="dashboard">
+            <div class="flex-between">
+                <div>
+                    <h2>📋 通聯紀錄與 QSL 狀態</h2>
+                    <div class="card-sub">點擊縮圖可放大檢視 QSL 卡圖片。若您是通聯的一方，可申請換卡。</div>
+                </div>
+                <div id="adminHint" style="font-size:0.85rem; color:#7e96af;"></div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th><th>呼號</th><th>頻段</th><th>模式</th>
+                            <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>QSL 申請</th><th>備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qsoTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 我的申請 -->
+        <section class="card" id="my-requests">
+            <h2>📬 我的 QSL 申請紀錄</h2>
+            <div class="card-sub">以下為您提出的 QSL 換卡申請，管理員處理後狀態會更新。</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>申請日期</th><th>通聯呼號</th><th>通聯日期</th><th>頻段 / 模式</th><th>申請狀態</th></tr>
+                    </thead>
+                    <tbody id="myRequestsBody">
+                        <tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 管理員專區（登入表單在此） -->
+        <section class="card admin-section" id="admin-panel">
+            <h2>⚙️ 管理員專區</h2>
+            <div class="card-sub">請先登入管理員帳號。登入後可上傳通聯紀錄、QSL 圖片並處理換卡申請。</div>
+
+            <!-- 登入表單 -->
+            <div class="admin-login-box" id="adminLoginBox">
+                <input type="password" id="adminPassword" placeholder="請輸入管理員密碼（預設：admin123）" autocomplete="off">
+                <button class="btn btn-primary" id="btnLogin">登入</button>
+                <span id="adminLoginHint" style="font-size:0.85rem; color:#7e96af;"></span>
+            </div>
+
+            <!-- 登入後的管理區塊 -->
+            <div id="adminContent" style="display:none;">
+                <div class="flex-between" style="margin-bottom:16px;">
+                    <h3 style="font-size:1.1rem; color:#1a3a5c;">📄 批量上傳 (ADIF) / ✏️ 手動新增</h3>
+                    <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
+                </div>
+
+                <div class="admin-upload-grid">
+                    <!-- ADIF 上傳 -->
+                    <div>
+                        <div class="upload-zone" style="padding:20px;">
+                            <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
+                            <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
+                            <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式</div>
+                            <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
+                    </div>
+
+                    <!-- 手動新增 -->
+                    <div class="manual-form">
+                        <input type="text" id="manualDate" placeholder="日期 (YYYY-MM-DD)">
+                        <input type="text" id="manualCall" placeholder="呼號 (例如 BM2XXX)">
+                        <input type="text" id="manualBand" placeholder="頻段 (例如 20m)">
+                        <input type="text" id="manualMode" placeholder="模式 (例如 SSB)">
+                        <input type="text" id="manualNote" placeholder="備註 (選填)">
+                        <button class="btn btn-primary" id="btnAddManual">新增紀錄</button>
+                    </div>
+                </div>
+
+                <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有紀錄、QSL 圖片與申請</h3>
+                <div class="table-wrapper">
+                    <table style="min-width:1000px;">
+                        <thead>
+                            <tr><th>日期</th><th>呼號</th><th>頻段</th><th>模式</th><th>收到 QSL</th><th>發出 QSL</th><th>申請</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="adminManageBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" id="btnClearAll">清除所有紀錄</button>
+                    <button class="btn btn-outline btn-sm" id="btnResetDemo">重置為示範資料</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 燈箱 -->
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" id="lightboxClose">×</span>
+        <img id="lightboxImg" src="" alt="QSL 卡大圖">
+    </div>
+
+    <div id="toast" class="toast">操作成功</div>
+
+    <script src="script.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BX2AOV QSL confirm</title>
     <style>
         * {
             margin: 0;
