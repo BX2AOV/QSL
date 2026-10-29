@@ -1,23 +1,19 @@
-/* ============================================================
-   apply.html 專用樣式
-   ============================================================ */
-
 /* ===== 1. 查詢呼號區塊 ===== */
 .user-callsign-area {
     display: flex;
-    flex-wrap: wrap; /* 允許在小螢幕換行 */
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     background: #f8fbfe;
     padding: 16px 20px;
-    border-radius: 20px; /* 改為 20px 圓角，比原本的膠囊形更好看 */
+    border-radius: 20px;
     border: 1px solid #dbe7f3;
 }
 
 #queryCallsignInput {
-    flex: 1 1 200px; /* 佔據剩餘空間，最小 200px */
+    flex: 1 1 200px;
     padding: 14px 20px;
-    border-radius: 12px; /* 輸入框圓角 */
+    border-radius: 12px;
     border: 1.5px solid #cbdae8;
     font-size: 1rem;
     color: #2b4056;
@@ -28,7 +24,6 @@
     font-family: inherit;
 }
 
-/* 點擊輸入框時的藍色光暈 */
 #queryCallsignInput:focus {
     border-color: #0066cc;
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
@@ -43,14 +38,14 @@
 .ship-form {
     display: flex;
     flex-direction: column;
-    gap: 18px; /* 欄位之間的間距 */
+    gap: 18px;
     max-width: 100%;
 }
 
 .form-row {
     display: flex;
     flex-direction: column;
-    gap: 8px; /* 標籤與輸入框的距離 */
+    gap: 8px;
 }
 
 .form-row label {
@@ -65,12 +60,11 @@
     margin-left: 2px;
 }
 
-/* 輸入框美化 (包含文字與電話) */
 .ship-form .form-row input[type="text"],
 .ship-form .form-row input[type="tel"] {
     width: 100%;
     padding: 14px 20px;
-    border-radius: 12px; /* 現代感圓角 */
+    border-radius: 12px;
     border: 1.5px solid #cbdae8;
     font-size: 1rem;
     color: #2b4056;
@@ -82,7 +76,6 @@
     box-sizing: border-box;
 }
 
-/* 輸入框 Focus 效果 */
 .ship-form .form-row input[type="text"]:focus,
 .ship-form .form-row input[type="tel"]:focus {
     border-color: #0066cc;
@@ -90,13 +83,11 @@
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
 }
 
-/* Placeholder 提示文字顏色 */
 .ship-form .form-row input::placeholder {
     color: #a0b2c6;
     font-weight: 400;
 }
 
-/* ===== 3. 排版優化 (並排與響應式) ===== */
 .row-group {
     display: flex;
     gap: 16px;
@@ -106,23 +97,33 @@
     flex: 1;
 }
 
-/* 在大螢幕上限制手機和郵遞區號的寬度，避免太長 */
 @media (min-width: 600px) {
     #shipPhone, #shipZip {
         max-width: 250px;
     }
 }
 
-/* 手機版特殊排版 */
 @media (max-width: 500px) {
-    /* 讓並排的欄位變成上下排列 */
     .row-group {
         flex-direction: column;
         gap: 18px;
     }
-    
-    /* 手機上讓查詢按鈕變為滿版，更好點擊 */
     .user-callsign-area .btn {
         width: 100%;
+    }
+}
+
+/* ===== 手機版表格優化 ===== */
+@media (max-width: 600px) {
+    #queryResultCard th, 
+    #queryResultCard td,
+    #myRequestsBody th,
+    #myRequestsBody td {
+        padding: 10px 8px;
+        font-size: 0.8rem;
+    }
+    #queryResultCard td:last-child {
+        white-space: normal;
+        word-break: break-all;
     }
 }
