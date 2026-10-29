@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯
+   manage.js - 管理員後台完整邏輯 (包含搜尋與 LoTW 同步)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -14,6 +14,8 @@ const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 
 let selectedFilesArray = [];
+let allRecords = []; // 存放從資料庫抓下來的所有資料
+let filteredRecords = []; // 存放搜尋過濾後的資料
 
 // 共用工具
 function showToast(msg) { 
@@ -68,7 +70,7 @@ function getDaysSince(dateString) {
 }
 
 // ============================================================
-// 登入與登出 (使用 Supabase Auth)
+// 登入與登出
 // ============================================================
 async function login() {
     const email = document.getElementById('adminUser').value.trim();
@@ -133,9 +135,9 @@ async function calculateStorageUsage() {
     if (!dbBar || !stBar) return;
 
     try {
-        const { data: allRecords, error } = await _supabase.from('qsl_records').select('*');
-        if (!error && allRecords) {
-            const jsonString = JSON.stringify(allRecords);
+        const { data: records, error } = await _supabase.from('qsl_records').select('*');
+        if (!error && records) {
+            const jsonString = JSON.stringify(records);
             const bytes = new Blob([jsonString]).size;
             const mb = bytes / (1024 * 1024);
             const percent = Math.min((mb / 500) * 100, 100);
@@ -143,7 +145,7 @@ async function calculateStorageUsage() {
             dbText.textContent = `${mb.toFixed(2)} MB / 500 MB (約 ${percent.toFixed(2)}%)`;
 
             let imgCount = 0;
-            allRecords.forEach(r => {
+            records.forEach(r => {
                 if (r.receivedImg && r.receivedImg.trim() !== '') imgCount++;
                 if (r.sentImg && r.sentImg.trim() !== '') imgCount++;
             });
@@ -166,14 +168,41 @@ async function calculateStorageUsage() {
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
-    manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
+    
+    // 如果 allRecords 是空的，才去抓資料 (避免每次搜尋都重新連線)
+    if (allRecords.length === 0) {
+        manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>';
+        const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
+        
+        if (error) { 
+            manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">資料載入失敗</div></td></tr>'; 
+            return; 
+        }
+        
+        allRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
+        filteredRecords = [...allRecords];
+    }
 
-    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
+    // 根據搜尋框的內容進行過濾
+    const searchInput = document.getElementById('adminSearchInput');
+    const keyword = searchInput ? searchInput.value.trim().toUpperCase() : '';
+    
+    if (keyword) {
+        filteredRecords = allRecords.filter(r => 
+            r.call.includes(keyword) || 
+            (r.date && r.date.includes(keyword)) || 
+            (r.band && r.band.toUpperCase().includes(keyword))
+        );
+    } else {
+        filteredRecords = [...allRecords];
+    }
 
-    if (error) { manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">資料載入失敗</div></td></tr>'; return; }
-    if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
+    if (filteredRecords.length === 0) {
+        manageTableBody.innerHTML = '<tr><td colspan="9"><div class="empty-state">🔍 找不到符合條件的紀錄</div></td></tr>';
+        return;
+    }
 
-    manageTableBody.innerHTML = data.map(r => {
+    manageTableBody.innerHTML = filteredRecords.map(r => {
         const display = getDisplayInfo(r); 
 
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
@@ -273,7 +302,12 @@ async function renderAdminTable() {
 async function changeStatus(recordId, newStatus) {
     showToast('⏳ 更新狀態中...');
     const { error } = await _supabase.from('qsl_records').update({ status: newStatus }).eq('id', recordId);
-    if (error) { showToast('❌ 更新失敗'); } else { showToast('✅ 狀態已更新'); }
+    if (error) { showToast('❌ 更新失敗'); } 
+    else { 
+        showToast('✅ 狀態已更新'); 
+        allRecords = []; // 清空快取，強制重新抓取資料
+        renderAdminTable();
+    }
 }
 
 async function deleteRecord(recordId) {
@@ -281,7 +315,7 @@ async function deleteRecord(recordId) {
     showToast('⏳ 正在刪除...');
     const { error } = await _supabase.from('qsl_records').delete().eq('id', recordId);
     if (error) { showToast('❌ 刪除失敗：' + error.message); } 
-    else { showToast('🗑️ 已成功刪除該筆通聯紀錄'); renderAdminTable(); calculateStorageUsage(); }
+    else { showToast('🗑️ 已成功刪除該筆通聯紀錄'); allRecords = []; renderAdminTable(); calculateStorageUsage(); }
 }
 
 async function deleteQslImage(recordId, type) {
@@ -301,7 +335,7 @@ async function deleteQslImage(recordId, type) {
 
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
     if (dbError) { showToast('❌ 刪除失敗'); } 
-    else { showToast('🗑️ 圖片已刪除'); renderAdminTable(); calculateStorageUsage(); }
+    else { showToast('🗑️ 圖片已刪除'); allRecords = []; renderAdminTable(); calculateStorageUsage(); }
 }
 
 async function deleteRequest(recordId, reqIndex) {
@@ -311,7 +345,8 @@ async function deleteRequest(recordId, reqIndex) {
     let requests = record.requests || [];
     requests.splice(reqIndex, 1);
     const { error: updateError } = await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
-    if (updateError) { showToast('❌ 刪除失敗'); } else { showToast('🗑️ 已刪除該筆申請'); renderAdminTable(); }
+    if (updateError) { showToast('❌ 刪除失敗'); } 
+    else { showToast('🗑️ 已刪除該筆申請'); allRecords = []; renderAdminTable(); }
 }
 
 async function approveRequest(recordId, reqIndex) {
@@ -320,7 +355,7 @@ async function approveRequest(recordId, reqIndex) {
     let requests = record.requests;
     requests[reqIndex].status = 'approved';
     await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
-    showToast('✅ 已核准申請'); renderAdminTable();
+    showToast('✅ 已核准申請'); allRecords = []; renderAdminTable();
 }
 
 async function rejectRequest(recordId, reqIndex) {
@@ -329,7 +364,7 @@ async function rejectRequest(recordId, reqIndex) {
     let requests = record.requests;
     requests[reqIndex].status = 'rejected';
     await _supabase.from('qsl_records').update({ requests: requests }).eq('id', recordId);
-    showToast('已拒絕申請'); renderAdminTable();
+    showToast('已拒絕申請'); allRecords = []; renderAdminTable();
 }
 
 async function handleQslImageUpload(recordId, type, event) {
@@ -387,6 +422,7 @@ async function handleQslImageUpload(recordId, type, event) {
             if (dbError) { showToast('❌ 資料庫更新失敗: ' + dbError.message); } 
             else { 
                 showToast(type === 'sent' ? '✅ 圖片已上傳，開始計算寄出天數' : '✅ 圖片上傳成功'); 
+                allRecords = []; // 清空快取，強制重新抓取資料
                 renderAdminTable(); 
                 calculateStorageUsage(); 
             }
@@ -423,186 +459,4 @@ function parseADIF(content) {
     const records = []; let current = {}; let pos = 0; const len = content.length;
     const headerEnd = content.toUpperCase().indexOf('<EOH>'); if (headerEnd !== -1) pos = headerEnd + 5;
     while (pos < len) {
-        const tagStart = content.indexOf('<', pos); if (tagStart === -1) break;
-        const tagEnd = content.indexOf('>', tagStart); if (tagEnd === -1) break;
-        const tagFull = content.substring(tagStart + 1, tagEnd).trim();
-        const parts = tagFull.split(':'); const fieldName = parts[0].trim().toUpperCase();
-        let fieldLen = parts.length > 1 ? parseInt(parts[1].trim(), 10) : null; pos = tagEnd + 1;
-        let value = '';
-        if (fieldLen !== null && !isNaN(fieldLen)) { value = content.substring(pos, pos + fieldLen).trim(); pos += fieldLen; } 
-        else { if (fieldName === 'EOR') { if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } } continue; }
-        
-        if (fieldName === 'EOR') { 
-            if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } 
-        } 
-        else if (fieldName === 'QSO_DATE') { let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; } 
-        else if (fieldName === 'TIME_ON') { let t = value; if (t.length >= 4) t = `${t.slice(0,2)}:${t.slice(2,4)}`; current.time = t; }
-        else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
-        else if (fieldName === 'BAND') { current.band = value; } 
-        else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
-        else if (fieldName === 'FREQ') { current.freq = parseFloat(value); } 
-        else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); }
-        else if (fieldName === 'COMMENT' || fieldName === 'NOTES') { current.note = (current.note || '') + value; }
-    }
-    if (Object.keys(current).length > 0) records.push({ ...current });
-    return records;
-}
-
-async function uploadADIF() {
-    if (selectedFilesArray.length === 0) { showToast('請先選擇 ADIF 檔案'); return; }
-    const btnUploadADIF = document.getElementById('btnUploadADIF');
-    
-    btnUploadADIF.disabled = true; 
-    btnUploadADIF.textContent = `⏳ 讀取中...`;
-
-    const { data: existingRecords, error: fetchError } = await _supabase.from('qsl_records').select('date, time, call, band, mode, note');
-    if (fetchError) { showToast('❌ 無法讀取資料庫進行比對'); btnUploadADIF.disabled = false; btnUploadADIF.textContent = '全部上傳並匯入'; return; }
-
-    let allNewRecords = [];
-    let processed = 0;
-    let duplicateCount = 0;
-
-    const readPromises = selectedFilesArray.map(file => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const parsed = parseADIF(e.target.result);
-                for (const p of parsed) {
-                    if (!p.call) continue;
-                    
-                    const isDuplicate = existingRecords.some(ex => {
-                        if (ex.call !== p.call || ex.mode !== p.mode || ex.date !== p.date) return false;
-
-                        if (p.freq && ex.note) {
-                            const match = ex.note.match(/FREQ:([\d.]+)/);
-                            if (match) {
-                                const exFreq = parseFloat(match[1]);
-                                if (Math.abs(exFreq - p.freq) > 0.005) return false;
-                            }
-                        } else if (ex.band !== p.band) {
-                            return false;
-                        }
-
-                        const exTime = timeToMinutes(ex.time);
-                        const newTime = timeToMinutes(p.time);
-                        return Math.abs(exTime - newTime) <= 3;
-                    });
-
-                    if (isDuplicate) { duplicateCount++; continue; }
-
-                    let noteStr = p.note || '';
-                    if (p.satName) noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
-                    if (p.freq) noteStr = `FREQ:${p.freq} ${noteStr}`.trim();
-
-                    allNewRecords.push({ 
-                        date: p.date || '—', 
-                        time: p.time || '—',
-                        call: p.call, 
-                        band: p.band || '—', 
-                        mode: p.mode || '—', 
-                        note: noteStr, 
-                        requests: [] 
-                    });
-                }
-                processed++;
-                btnUploadADIF.textContent = `⏳ 比對中 (${processed}/${selectedFilesArray.length})...`;
-                resolve();
-            };
-            reader.readAsText(file);
-        });
-    });
-
-    await Promise.all(readPromises);
-
-    if (allNewRecords.length > 0) {
-        btnUploadADIF.textContent = `⏳ 寫入資料庫中...`;
-        const { error } = await _supabase.from('qsl_records').insert(allNewRecords);
-        
-        if (error) { showToast('❌ 匯入失敗'); } 
-        else { 
-            let msg = `✅ 新增 ${allNewRecords.length} 筆`;
-            if (duplicateCount > 0) msg += `，跳過 ${duplicateCount} 筆重複`;
-            showToast(msg);
-            renderAdminTable(); calculateStorageUsage();
-        }
-    } else { 
-        showToast(`⚠️ 無有效資料 (跳過 ${duplicateCount} 筆重複)`); 
-    }
-
-    btnUploadADIF.disabled = false; 
-    btnUploadADIF.textContent = '全部上傳並匯入';
-    clearSelectedFiles();
-}
-
-async function addManualRecord() {
-    const btnAddManual = document.getElementById('btnAddManual');
-    const date = document.getElementById('manualDate').value;
-    const time = document.getElementById('manualTime').value;
-    const call = document.getElementById('manualCall').value.trim().toUpperCase();
-    const band = document.getElementById('manualBand').value.trim();
-    const mode = document.getElementById('manualMode').value.trim().toUpperCase();
-    const note = document.getElementById('manualNote').value.trim();
-    
-    if (!date || !call || !band || !mode) { showToast('請填寫完整欄位'); return; }
-
-    btnAddManual.disabled = true; btnAddManual.textContent = '新增中...';
-    const { error } = await _supabase.from('qsl_records').insert([{ 
-        date, time, call, band, mode, note, requests: [] 
-    }]);
-    btnAddManual.disabled = false; btnAddManual.textContent = '新增紀錄';
-    
-    if (error) { showToast('❌ 新增失敗'); } 
-    else {
-        showToast(`✅ 已新增 ${call}`);
-        document.getElementById('manualDate').value = ''; 
-        document.getElementById('manualTime').value = '';
-        document.getElementById('manualCall').value = '';
-        document.getElementById('manualBand').value = ''; 
-        document.getElementById('manualMode').value = ''; 
-        document.getElementById('manualNote').value = '';
-        renderAdminTable(); calculateStorageUsage();
-    }
-}
-
-// ============================================================
-// 初始化事件綁定
-// ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-    checkUser();
-    btnLogin?.addEventListener('click', login);
-    btnLogout?.addEventListener('click', logout);
-    document.getElementById('adminPassword')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
-    
-    document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
-    document.getElementById('btnUploadADIF')?.addEventListener('click', uploadADIF);
-    document.getElementById('btnClearFiles')?.addEventListener('click', clearSelectedFiles);
-    
-    document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
-
-    // 👇 呼叫 swift-task 按鈕事件 (已修正名稱) 👇
-    document.getElementById('btnSyncLoTW')?.addEventListener('click', async function() {
-        const btn = this;
-        btn.disabled = true;
-        btn.textContent = '⏳ 正在從 LoTW 抓取資料...';
-
-        // 呼叫你剛剛部署的 Edge Function (名稱是 swift-task)
-        const { data, error } = await _supabase.functions.invoke('swift-task');
-
-        btn.disabled = false;
-        btn.textContent = '🔄 從 LoTW 自動同步已確認卡片';
-
-        if (error) {
-            showToast('❌ 同步失敗: ' + error.message);
-            console.error(error);
-        } else if (data && data.error) {
-            showToast('❌ 錯誤: ' + data.error);
-        } else {
-            showToast('✅ ' + (data.message || '同步成功！'));
-            renderAdminTable(); // 重新整理表格以顯示更新後的狀態
-        }
-    });
-
-    const lb = document.getElementById('lightbox');
-    if (lb) lb.addEventListener('click', closeLightbox);
-    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
-});
+        const tagStart
