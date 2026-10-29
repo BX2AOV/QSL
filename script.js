@@ -49,8 +49,8 @@ async function fetchData() {
 
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>`;
 
-    // 依照日期和時間排序
-    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
+    // 依照日期排序
+    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false });
 
     if (error) { 
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">資料載入失敗</div></td></tr>`;
@@ -76,20 +76,33 @@ function renderMainTable() {
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         
-        // 預設顯示資料庫的原始內容
         let displayBand = r.band;
         let displayMode = r.mode;
         let displayNote = r.note || '—';
-        let displayTime = r.time || '—'; // 抓取獨立的時間欄位
+        let displayTime = r.time || '—';
 
-        // 如果資料庫的備註欄位還有殘留的 [ARISS] 等字眼，自動替換頻段與模式
+        // 🔍 智慧判斷區：如果資料庫沒有獨立時間，就去備註裡面撈
         if (r.note) {
-            const satMatch = r.note.match(/^\[(.*?)\]/);
-            if (satMatch && satMatch[1]) {
-                displayBand = satMatch[1];
-                displayMode = 'SAT';
-                displayNote = r.note.replace(/^\[.*?\]\s*/, '') || '—';
+            // 1. 抓取備註裡的時間格式，例如 [15:10]
+            const timeMatch = r.note.match(/\[([0-9]{2}:[0-9]{2})\]/);
+            if (timeMatch && timeMatch[1]) {
+                // 如果 time 欄位是空的，就借用抓到的時間
+                if (!r.time || r.time === '—') displayTime = timeMatch[1];
+                // 從備註字串中把時間刪掉，保持畫面乾淨
+                displayNote = displayNote.replace(/\[([0-9]{2}:[0-9]{2})\]\s*/, '');
             }
+
+            // 2. 抓取備註裡的衛星名稱，例如 [ARISS]
+            const satMatch = r.note.match(/^\[(.*?)\]/);
+            // 避免抓錯（確認括號裡不是時間格式）
+            if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
+                displayBand = satMatch[1]; 
+                displayMode = 'SAT';       
+                displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
+            }
+            
+            // 清理備註裡多餘的空白或字眼
+            displayNote = displayNote.replace('衛星通聯', '').trim() || '—';
         }
 
         return `<tr>
