@@ -46,6 +46,28 @@ function applyLanguage() {
 }
 
 // ============================================================
+// 轉義工具（兩種上下文分工）
+// ============================================================
+// 文字上下文：轉義 & < >（現有邏輯保留）
+function escapeHtml(text) { 
+    if (!text) return ''; 
+    const div = document.createElement('div'); 
+    div.textContent = text; 
+    return div.innerHTML; 
+}
+
+// 屬性上下文：額外轉義引號，防屬性逃逸（C-2 修復核心）
+function escAttr(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ============================================================
 // 狀態判斷與翻譯
 // ============================================================
 function computeQslStatus(r) {
@@ -68,16 +90,10 @@ function computeQslStatus(r) {
     if (r.receivedImg) return { cls: 'badge-received', text: t[lang].rcvd };
     if (r.sentImg) return { cls: 'badge-sent', text: t[lang].snt };
     
-    if (r.requests && r.requests.length > 0) return { cls: 'badge-pending', text: t[lang].pending };
+    // H-1 連動：公開視圖不再回傳 requests 陣列，改用 has_requests 布林值
+    if (r.has_requests) return { cls: 'badge-pending', text: t[lang].pending };
     
     return { cls: 'badge-none', text: t[lang].none };
-}
-
-function escapeHtml(text) { 
-    if (!text) return ''; 
-    const div = document.createElement('div'); 
-    div.textContent = text; 
-    return div.innerHTML; 
 }
 
 function openLightbox(src) {
@@ -106,7 +122,12 @@ async function fetchData() {
         }
     });
 
-    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
+    // H-1 修復：改讀公開視圖，requests 欄位根本不下發
+    const { data, error } = await _supabase
+        .from('qsl_public')
+        .select('id, date, time, call, band, mode, note, receivedImg, sentImg, status, has_requests')
+        .order('date', { ascending: false })
+        .order('time', { ascending: false });
 
     if (error) { 
         const errText = { zh: '資料載入失敗', cn: '数据载入失败', en: 'Data load failed', ja: 'データの読み込みに失敗しました' };
@@ -114,7 +135,8 @@ async function fetchData() {
         return; 
     }
 
-    qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
+    // qsl_public 已不含 requests，不需再補空陣列
+    qslRecords = data || [];
     filteredRecords = [...qslRecords]; 
     currentPage = 1;
     renderMainTable();
@@ -144,8 +166,13 @@ function renderMainTable() {
     tbody.innerHTML = paginatedRecords.map(r => {
         const st = computeQslStatus(r);
         
-        const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
-        const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
+        // C-2 修復：屬性值用 escAttr 轉義；移除內聯 onclick，改 data-src 由事件委託處理
+        const recvImg = r.receivedImg 
+            ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="Received QSL">` 
+            : '';
+        const sentImg = r.sentImg 
+            ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="Sent QSL">` 
+            : '';
         
         let displayBand = r.band;
         let displayMode = r.mode;
@@ -252,6 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     applyLanguage();
 
+    // C-2 配套：語言切換改事件委託（index.html 已移除內聯 onclick）
+    document.getElementById('langToggle')?.addEventListener('click', (e) => {
+        const opt = e.target.closest('.lang-option');
+        if (!opt) return;
+        const lang = opt.dataset.lang;
+        if (lang && typeof changeLang === 'function') changeLang(lang);
+    });
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function() {
@@ -259,12 +294,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!keyword) {
                 filteredRecords = [...qslRecords];
             } else {
-                filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
+                // L-2 修復：call 為 null 時不拋錯
+                filteredRecords = qslRecords.filter(r => (r.call || '').toUpperCase().includes(keyword));
             }
             currentPage = 1;
             renderMainTable();
         });
     }
+
+    // C-2 配套：圖片燈箱改事件委託（原本是內聯 onclick）
+    document.getElementById('qsoTableBody')?.addEventListener('click', (e) => {
+        const img = e.target.closest('.qsl-thumb');
+        if (!img) return;
+        const src = img.dataset.src || img.getAttribute('src');
+        if (src) openLightbox(src);
+    });
 
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
