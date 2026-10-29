@@ -96,8 +96,8 @@ async function fetchData() {
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
 
-    // 背景觸發清理機制
-    _supabase.functions.invoke('cleanup-old-images').then(({ data, error }) => {
+    // 🌟 背景觸發清理機制 (呼叫你建立的 clever-responder)
+    _supabase.functions.invoke('clever-responder').then(({ data, error }) => {
         if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
             console.log("🧹 背景清理通知：", data.message);
         }
@@ -132,7 +132,7 @@ function renderMainTable() {
     tbody.innerHTML = recordsToShow.map(r => {
         const st = computeQslStatus(r);
         
-        // 🌟 如果沒有圖片，就直接顯示空白字串 ''，不再顯示虛線框
+        // 如果沒有圖片，就直接顯示空白字串 ''，不再顯示虛線框
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
         
