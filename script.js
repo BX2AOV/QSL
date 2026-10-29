@@ -1,112 +1,253 @@
-/* ===== Reset ===== */
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
-body { background: #e9f0f7; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
-.app-container { width: 100%; max-width: 1200px; }
+/* ============================================================
+   BX2AOV QSL confirm - 主邏輯
+   ============================================================ */
 
-/* ===== 頂部橫列 ===== */
-.header-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; background: #fff; border-radius: 60px; padding: 8px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 28px; border: 1px solid #d9e2ec; }
-.logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.3rem; color: #0b2a4a; letter-spacing: 0.5px; }
-.logo-icon { background: #0b2a4a; color: #fff; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-.callsign-badge { background: #0066cc; color: #fff; padding: 4px 14px; border-radius: 40px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; }
-.nav-links { display: flex; gap: 4px; flex-wrap: wrap; list-style: none; }
-.nav-links a { text-decoration: none; color: #2c3e50; font-weight: 500; padding: 10px 18px; border-radius: 40px; transition: 0.2s; font-size: 0.95rem; }
-.nav-links a:hover, .nav-links a.active { background: #e6f0ff; color: #0066cc; }
+// ---------- 常數 ----------
+const STORAGE_KEY = 'qsl_manager_data_v4';
+const USER_CALLSIGN_KEY = 'qsl_user_callsign';
+const ADMIN_PASSWORD = 'admin123';
 
-/* ===== 卡片 ===== */
-.card { background: #fff; border-radius: 32px; padding: 28px 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); border: 1px solid #e0e9f2; margin-bottom: 28px; }
-.card h2 { font-size: 1.5rem; font-weight: 600; color: #0b2a4a; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-.card-sub { color: #5a6e85; font-size: 0.95rem; margin-bottom: 22px; }
+const defaultRecords = [
+    { id: 1, date: '2025-01-10', call: 'BM2ABC', band: '20m', mode: 'SSB', note: '等待回卡', receivedImg: null, sentImg: null, requests: [] },
+    { id: 2, date: '2025-01-12', call: 'JP1XYZ', band: '15m', mode: 'FT8', note: '已收到紙卡', receivedImg: null, sentImg: null, requests: [] },
+    { id: 3, date: '2025-01-15', call: 'VK3DEF', band: '40m', mode: 'CW', note: '已寄出', receivedImg: null, sentImg: null, requests: [] },
+    { id: 4, date: '2025-01-18', call: 'W6GHI', band: '10m', mode: 'SSB', note: '透過 Bureau', receivedImg: null, sentImg: null, requests: [] },
+    { id: 5, date: '2025-01-20', call: 'BV2JKL', band: '2m', mode: 'FM', note: '本地交換', receivedImg: null, sentImg: null, requests: [] },
+];
 
-/* ===== 按鈕 ===== */
-.btn { padding: 14px 28px; border-radius: 40px; border: none; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; background: #eef3f9; color: #1f3a5f; }
-.btn-primary { background: #0b2a4a; color: #fff; }
-.btn-primary:hover { background: #123a63; }
-.btn-outline { background: transparent; border: 1px solid #b8cee4; }
-.btn-outline:hover { background: #eef6ff; border-color: #7aa9d9; }
-.btn-sm { padding: 8px 18px; font-size: 0.85rem; }
+// ---------- 狀態 ----------
+let qslRecords = loadData();
+let userCallsign = localStorage.getItem(USER_CALLSIGN_KEY) || '';
+let isAdmin = false;
+let selectedAdifFile = null;
 
-/* ===== 角色標籤 ===== */
-.role-badge { padding: 6px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; background: #e3efff; color: #0066cc; display: inline-block; }
-.role-badge.admin { background: #fff3e0; color: #b45f06; }
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const qsoTableBody = $('qsoTableBody');
+const adminManageBody = $('adminManageBody');
+const myRequestsBody = $('myRequestsBody');
+const loginStatus = $('loginStatus');
+const adminHint = $('adminHint');
+const adminSection = $('admin-panel');
+const adminContent = $('adminContent');
+const adminLoginBox = $('adminLoginBox');
+const adminLoginHint = $('adminLoginHint');
+const toastEl = $('toast');
+const lightbox = $('lightbox');
+const lightboxImg = $('lightboxImg');
+const lightboxClose = $('lightboxClose');
+const currentCallsignDisplay = $('currentCallsignDisplay');
+const userCallsignInput = $('userCallsignInput');
 
-/* ===== 表格 ===== */
-.table-wrapper { overflow-x: auto; margin-top: 16px; border-radius: 20px; border: 1px solid #e1eaf2; }
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 900px; }
-th { background: #f4f9ff; text-align: left; padding: 16px 18px; font-weight: 600; color: #1a3a5c; border-bottom: 1px solid #dae5f0; white-space: nowrap; }
-td { padding: 14px 18px; border-bottom: 1px solid #edf2f8; color: #2b4056; vertical-align: middle; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fafdff; }
-
-/* ===== 上傳區 ===== */
-.upload-zone { border: 2px dashed #b8cee4; border-radius: 24px; padding: 32px 24px; text-align: center; background: #fbfdff; transition: 0.2s; margin-top: 10px; }
-.upload-zone:hover { border-color: #0066cc; background: #f4faff; }
-.upload-zone input[type="file"] { display: none; }
-.upload-label { display: inline-block; background: #0b2a4a; color: #fff; padding: 12px 32px; border-radius: 40px; cursor: pointer; font-weight: 500; transition: 0.2s; margin-bottom: 8px; }
-.upload-label:hover { background: #123a63; }
-.file-hint { color: #6b8199; font-size: 0.85rem; margin-top: 8px; }
-.file-name { margin-top: 12px; font-size: 0.9rem; color: #1f3a5f; font-weight: 500; }
-
-/* ===== 管理員區塊 ===== */
-.admin-section { display: none; }
-.admin-section.visible { display: block; }
-
-.admin-login-box { background: #f8fbfe; padding: 24px 28px; border-radius: 24px; border: 1px solid #dbe7f3; margin-bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
-.admin-login-box input { flex: 1 1 220px; padding: 14px 20px; border-radius: 40px; border: 1px solid #cbdae8; font-size: 1rem; outline: none; background: #fff; }
-.admin-login-box input:focus { border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
-
-.admin-upload-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; }
-.admin-upload-grid > div { flex: 1; min-width: 200px; }
-
-.manual-form { display: flex; flex-direction: column; gap: 10px; }
-.manual-form input { padding: 12px 18px; border-radius: 40px; border: 1px solid #cbdae8; outline: none; }
-
-/* ===== Toast ===== */
-.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #0b2a4a; color: #fff; padding: 14px 32px; border-radius: 60px; font-weight: 500; font-size: 0.95rem; opacity: 0; pointer-events: none; transition: 0.3s ease; box-shadow: 0 12px 28px rgba(0,0,0,0.2); z-index: 1000; white-space: nowrap; }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ===== 狀態徽章 ===== */
-.badge-pending { background: #fff0d9; color: #b45f06; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-received { background: #d9f0e0; color: #0e6b3e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-sent { background: #e0e7ff; color: #3b4e9e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-requested { background: #f3e5ff; color: #7b3fa0; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-completed { background: #d9f0e0; color: #0e6b3e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-approved { background: #d9f0e0; color: #0e6b3e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.badge-rejected { background: #fde8e8; color: #b03030; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-
-.empty-state { text-align: center; padding: 40px 20px; color: #7e96af; }
-.flex-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-
-/* ===== QSL 縮圖 ===== */
-.qsl-thumb { width: 60px; height: 42px; object-fit: cover; border-radius: 8px; border: 1px solid #dbe7f3; cursor: pointer; transition: 0.15s; background: #f4f9ff; }
-.qsl-thumb:hover { transform: scale(1.05); border-color: #0066cc; }
-.qsl-thumb-empty { width: 60px; height: 42px; border-radius: 8px; border: 1px dashed #cbdae8; display: flex; align-items: center; justify-content: center; color: #b8cee4; font-size: 1.2rem; background: #fbfdff; }
-
-/* ===== 上傳按鈕群組 ===== */
-.upload-btns { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.upload-btns label { cursor: pointer; padding: 7px 14px; border-radius: 40px; font-size: 0.78rem; font-weight: 600; border: 1px solid #b8cee4; background: #fff; transition: 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-.upload-btns label:hover { background: #eef6ff; border-color: #7aa9d9; }
-.upload-btns input[type="file"] { display: none; }
-
-/* ===== 燈箱 ===== */
-.lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 24px; }
-.lightbox.show { display: flex; }
-.lightbox img { max-width: 90%; max-height: 85vh; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); background: #fff; padding: 8px; }
-.lightbox-close { position: absolute; top: 24px; right: 32px; color: #fff; font-size: 2rem; cursor: pointer; line-height: 1; }
-.lightbox-close:hover { opacity: 0.7; }
-
-/* ===== 申請按鈕 ===== */
-.btn-request { background: #7b3fa0; color: #fff; padding: 8px 18px; border-radius: 40px; border: none; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: 0.15s; white-space: nowrap; }
-.btn-request:hover { background: #5e2d7d; }
-
-/* ===== 用戶呼號區 ===== */
-.user-callsign-area { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: #f8fbfe; padding: 14px 20px; border-radius: 60px; border: 1px solid #dbe7f3; }
-.user-callsign-area input { flex: 1 1 200px; padding: 12px 20px; border-radius: 40px; border: 1px solid #cbdae8; font-size: 0.95rem; outline: none; background: #fff; }
-.user-callsign-area input:focus { border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
-.callsign-tag { background: #e6f0ff; color: #0066cc; padding: 4px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; }
-
-/* ===== 響應式 ===== */
-@media (max-width: 700px) {
-    .header-bar { border-radius: 32px; padding: 12px 18px; justify-content: center; }
-    .nav-links a { padding: 8px 14px; font-size: 0.85rem; }
-    .card { padding: 20px 18px; border-radius: 24px; }
+// ============================================================
+// 資料存取
+// ============================================================
+function loadData() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+        try { return JSON.parse(stored); }
+        catch (e) { return JSON.parse(JSON.stringify(defaultRecords)); }
+    }
+    return JSON.parse(JSON.stringify(defaultRecords));
 }
+
+function saveData(records) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
+    catch (e) { showToast('⚠️ 儲存空間不足，圖片可能過大'); }
+}
+
+// ============================================================
+// 工具
+// ============================================================
+function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(window.toastTimer);
+    window.toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2500);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function openLightbox(src) {
+    if (!src) return;
+    lightboxImg.src = src;
+    lightbox.classList.add('show');
+}
+
+function closeLightbox() {
+    lightbox.classList.remove('show');
+    lightboxImg.src = '';
+}
+
+// ============================================================
+// 用戶呼號
+// ============================================================
+function setUserCallsign() {
+    const v = userCallsignInput.value.trim().toUpperCase();
+    if (!v) { showToast('請輸入呼號'); return; }
+    userCallsign = v;
+    localStorage.setItem(USER_CALLSIGN_KEY, userCallsign);
+    updateUserCallsignDisplay();
+    renderTables();
+    showToast(`✅ 已設定呼號：${userCallsign}`);
+}
+
+function updateUserCallsignDisplay() {
+    if (userCallsign) {
+        currentCallsignDisplay.innerHTML = `<span class="callsign-tag">目前呼號：${escapeHtml(userCallsign)}</span>`;
+        userCallsignInput.value = userCallsign;
+    } else {
+        currentCallsignDisplay.innerHTML = '<span style="color:#b8cee4;">尚未設定呼號</span>';
+    }
+}
+
+// ============================================================
+// 管理員登入 / 登出
+// ============================================================
+function loginAdmin() {
+    const pwd = $('adminPassword').value.trim();
+    if (pwd === ADMIN_PASSWORD) {
+        isAdmin = true;
+        adminLoginBox.style.display = 'none';
+        adminContent.style.display = 'block';
+        loginStatus.innerHTML = '<span class="role-badge admin">管理員</span>';
+        adminHint.textContent = '✅ 管理模式';
+        adminLoginHint.textContent = '';
+        $('adminPassword').value = '';
+        showToast('✅ 管理員登入成功');
+        renderTables();
+    } else {
+        adminLoginHint.textContent = '❌ 密碼錯誤，請再試一次';
+        showToast('❌ 密碼錯誤');
+    }
+}
+
+function logoutAdmin() {
+    isAdmin = false;
+    adminLoginBox.style.display = 'flex';
+    adminContent.style.display = 'none';
+    loginStatus.innerHTML = '<span class="role-badge">訪客</span>';
+    adminHint.textContent = '';
+    $('adminPassword').value = '';
+    adminLoginHint.textContent = '';
+    showToast('👋 已登出管理員');
+    renderTables();
+}
+
+// ============================================================
+// 渲染
+// ============================================================
+function renderTables() {
+    renderMainTable();
+    renderMyRequests();
+    if (isAdmin) renderAdminTable();
+}
+
+function imgCellHtml(imgData, altText) {
+    if (imgData) {
+        const safe = imgData.replace(/'/g, "\\'");
+        return `<img src="${imgData}" class="qsl-thumb" alt="${altText}" onclick="openLightbox('${safe}')">`;
+    }
+    return `<div class="qsl-thumb-empty">—</div>`;
+}
+
+function computeQslStatus(r) {
+    if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: '雙向完成' };
+    if (r.receivedImg) return { cls: 'badge-received', text: '已收到' };
+    if (r.sentImg) return { cls: 'badge-sent', text: '已發出' };
+    return { cls: 'badge-pending', text: '待處理' };
+}
+
+function renderMainTable() {
+    if (qslRecords.length === 0) {
+        qsoTableBody.innerHTML = `<tr><td colspan="9"><div class="empty-state">📭 目前沒有通聯紀錄</div></td></tr>`;
+        return;
+    }
+    qsoTableBody.innerHTML = qslRecords.map(r => {
+        const st = computeQslStatus(r);
+        let reqHtml = '—';
+        if (userCallsign && userCallsign === r.call) {
+            const already = (r.requests || []).some(req => req.userCall === userCallsign);
+            reqHtml = already
+                ? `<span class="badge-requested">已申請</span>`
+                : `<button class="btn-request" onclick="requestQSL(${r.id})">申請換卡</button>`;
+        } else if (userCallsign && userCallsign !== r.call) {
+            reqHtml = `<span style="color:#b8cee4; font-size:0.85rem;">非本人通聯</span>`;
+        } else {
+            reqHtml = `<span style="color:#b8cee4; font-size:0.85rem;">請先設定呼號</span>`;
+        }
+        return `<tr>
+            <td>${escapeHtml(r.date)}</td>
+            <td><strong>${escapeHtml(r.call)}</strong></td>
+            <td>${escapeHtml(r.band)}</td>
+            <td>${escapeHtml(r.mode)}</td>
+            <td>${imgCellHtml(r.receivedImg, r.call + ' 收到')}</td>
+            <td>${imgCellHtml(r.sentImg, r.call + ' 發出')}</td>
+            <td><span class="${st.cls}">${st.text}</span></td>
+            <td>${reqHtml}</td>
+            <td>${escapeHtml(r.note || '—')}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderMyRequests() {
+    if (!userCallsign) {
+        myRequestsBody.innerHTML = `<tr><td colspan="5"><div class="empty-state">請先設定您的呼號</div></td></tr>`;
+        return;
+    }
+    const list = [];
+    qslRecords.forEach(r => (r.requests || []).forEach(req => {
+        if (req.userCall === userCallsign) list.push({ ...req, record: r });
+    }));
+    if (list.length === 0) {
+        myRequestsBody.innerHTML = `<tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>`;
+        return;
+    }
+    myRequestsBody.innerHTML = list.map(req => {
+        let cls = 'badge-pending', txt = '待處理';
+        if (req.status === 'approved') { cls = 'badge-approved'; txt = '已核准'; }
+        else if (req.status === 'rejected') { cls = 'badge-rejected'; txt = '已拒絕'; }
+        return `<tr>
+            <td>${escapeHtml(req.requestDate)}</td>
+            <td><strong>${escapeHtml(req.record.call)}</strong></td>
+            <td>${escapeHtml(req.record.date)}</td>
+            <td>${escapeHtml(req.record.band)} / ${escapeHtml(req.record.mode)}</td>
+            <td><span class="${cls}">${txt}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAdminTable() {
+    if (qslRecords.length === 0) {
+        adminManageBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#7e96af;">無紀錄</td></tr>`;
+        return;
+    }
+    adminManageBody.innerHTML = qslRecords.map(r => {
+        // 收到上傳
+        const recvHtml = `
+            <div class="upload-btns">
+                <label for="recv-${r.id}">📥 上傳</label>
+                <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
+                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
+            </div>`;
+        // 發出上傳
+        const sentHtml = `
+            <div class="upload-btns">
+                <label for="sent-${r.id}">📤 上傳</label>
+                <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
+                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg.replace(/'/g, "\\'")}')">` : '<span style="color:#b8cee4;">—</span>'}
+            </div>`;
+
+        // 申請處理
+        let reqHtml = '—';
+        if (r.requests && r.requests.length > 0) {
+            reqHtml = r.requests.map((req, idx) => {
+                let statusHtml = '';
+                if (req.status === 'pending') {
+                    statusHtml = `<span class="badge-pending">待處理</span>
+                        <button class="btn btn-outline btn-sm" style="margin
