@@ -38,6 +38,20 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
+// 解析顯示用的頻段與模式 (衛星判斷)
+function getDisplayInfo(r) {
+    let displayBand = r.band;
+    let displayMode = r.mode;
+    if (r.note) {
+        const satMatch = r.note.match(/^\[(.*?)\]/);
+        if (satMatch && satMatch[1]) {
+            displayBand = satMatch[1]; // 頻段變衛星名稱
+            displayMode = 'SAT';       // 模式變 SAT
+        }
+    }
+    return { band: displayBand, mode: displayMode };
+}
+
 // ============================================================
 // 登入與登出
 // ============================================================
@@ -134,6 +148,8 @@ async function renderAdminTable() {
     if (data.length === 0) { manageTableBody.innerHTML = '<tr><td colspan="7"><div class="empty-state">目前沒有通聯紀錄</div></td></tr>'; return; }
 
     manageTableBody.innerHTML = data.map(r => {
+        const display = getDisplayInfo(r); // 取得替換後的頻段與模式
+
         let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
@@ -186,8 +202,8 @@ async function renderAdminTable() {
         return `<tr>
             <td>${escapeHtml(r.date)}</td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
-            <td>${escapeHtml(r.band)}</td>
-            <td>${escapeHtml(r.mode)}</td>
+            <td><strong style="color:#0066cc;">${escapeHtml(display.band)}</strong></td>
+            <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
             <td>${reqHtml}</td>
             <td>${recvHtml}${sentHtml}</td>
             <td>
@@ -341,7 +357,7 @@ function parseADIF(content) {
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
-        else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); } // 抓取衛星名稱
+        else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); }
         else if (fieldName === 'COMMENT' || fieldName === 'NOTES') { current.note = (current.note || '') + value; }
     }
     if (Object.keys(current).length > 0) records.push({ ...current });
@@ -358,7 +374,6 @@ async function uploadADIF() {
         for (const p of parsed) {
             if (!p.call) continue;
             
-            // 如果有衛星名稱，把備註格式化成 "[衛星名稱] 衛星通聯"
             let noteStr = p.note || '';
             if (p.satName) {
                 noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
