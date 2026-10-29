@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含空間監測)
+   manage.js - 管理員後台完整邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -20,7 +20,7 @@ function showToast(msg) {
     if(!t) return; 
     t.textContent = msg; t.classList.add('show'); 
     clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 2500); 
+    window.tt = setTimeout(() => t.classList.remove('show'), 3500); // 延長顯示時間方便看錯誤
 }
 function escapeHtml(text) { 
     if (!text) return ''; 
@@ -71,7 +71,7 @@ function checkUser() {
         roleBadge.textContent = '管理員'; 
         roleBadge.className = 'role-badge admin';
         renderAdminTable(); 
-        calculateStorageUsage(); // 👈 登入後計算空間
+        calculateStorageUsage(); 
     } else {
         loginSection.style.display = 'block'; 
         adminPanel.style.display = 'none';
@@ -105,7 +105,7 @@ async function calculateStorageUsage() {
         }
     } catch (e) { dbText.textContent = '無法估算'; }
 
-    // 2. 估算圖片容量 (透過 Storage API)
+    // 2. 估算圖片容量
     try {
         const { data: files, error: storageError } = await _supabase.storage.from('qsl-images').list();
         if (!storageError && files) {
@@ -230,16 +230,34 @@ async function handleQslImageUpload(recordId, type, event) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
+    // 上傳到 Storage
     const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, file);
-    if (uploadError) { showToast('❌ 圖片上傳失敗'); event.target.value=''; return; }
+    if (uploadError) { 
+        console.error("Storage上傳失敗:", uploadError);
+        showToast('❌ 圖片上傳失敗: ' + uploadError.message); 
+        event.target.value=''; 
+        return; 
+    }
 
+    // 取得網址
     const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
+    
+    // 準備寫入資料庫的資料
     const updateData = {};
     updateData[type === 'received' ? 'receivedImg' : 'sentImg'] = publicUrl;
 
+    // 寫入資料庫
     const { error: dbError } = await _supabase.from('qsl_records').update(updateData).eq('id', recordId);
-    if (dbError) { showToast('❌ 資料庫更新失敗'); } 
-    else { showToast('✅ 圖片上傳成功'); renderAdminTable(); calculateStorageUsage(); }
+    
+    if (dbError) { 
+        console.error("資料庫更新失敗詳情:", dbError);
+        showToast('❌ 資料庫更新失敗: ' + dbError.message); 
+    } 
+    else { 
+        showToast('✅ 圖片上傳成功'); 
+        renderAdminTable(); 
+        calculateStorageUsage(); 
+    }
     event.target.value = '';
 }
 
