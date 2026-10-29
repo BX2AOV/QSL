@@ -1,27 +1,28 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (包含分頁與四國語言)
+   script.js - 首頁（總覽）專用邏輯 (包含搜尋與多語系分頁)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentLang = localStorage.getItem('site_lang') || 'zh';
+let qslRecords = [];
+let filteredRecords = []; 
+let currentLang = localStorage.getItem('site_lang') || 'zh'; 
 
+// 🌟 分頁專用變數
 let currentPage = 1;
 const itemsPerPage = 10;
 
 // ============================================================
-// 核心：精準點擊哪個語言就切換
+// 語言切換核心邏輯
 // ============================================================
 window.changeLang = function(lang) {
     currentLang = lang;
     localStorage.setItem('site_lang', currentLang);
     applyLanguage();
-    // 🌟 切換語言時，如果已經有查詢結果，重新渲染以更新分頁文字
-    if (typeof matchedRecords !== 'undefined' && matchedRecords.length > 0) {
-        renderQueryResult();
-    }
+    // 切換語言時，如果已經有表格，重新渲染以更新分頁文字
+    if (qslRecords.length > 0) renderMainTable();
 };
 
 function applyLanguage() {
@@ -37,43 +38,16 @@ function applyLanguage() {
         }
     });
 
-    const btnNoPhone = document.getElementById('btnNoPhone');
-    if (btnNoPhone) {
-        const isCancelled = btnNoPhone.getAttribute('data-active') === 'true';
-        const noPhoneText = { 
-            zh: isCancelled ? '已取消提供' : '無需提供', 
-            cn: isCancelled ? '已取消提供' : '无需提供', 
-            en: isCancelled ? 'Cancelled' : 'No Phone', 
-            ja: isCancelled ? 'キャンセル済' : '電話不要' 
-        };
-        btnNoPhone.textContent = noPhoneText[currentLang];
-    }
-
     const toggle = document.getElementById('langToggle');
     if (toggle) toggle.setAttribute('data-active', currentLang);
 
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
-
-    if (typeof renderMyRequests === 'function' && typeof queryCallsign !== 'undefined' && queryCallsign) {
-        renderMyRequests();
-    }
 }
 
-function showToast(msg) { 
-    const t = document.getElementById('toast'); 
-    if(!t) return; 
-    t.textContent = msg; t.classList.add('show'); 
-    clearTimeout(window.tt); 
-    window.tt = setTimeout(() => t.classList.remove('show'), 3500); 
-}
-function escapeHtml(text) { 
-    if (!text) return ''; 
-    const div = document.createElement('div'); 
-    div.textContent = text; 
-    return div.innerHTML; 
-}
-
+// ============================================================
+// 狀態判斷與翻譯
+// ============================================================
 function computeQslStatus(r) {
     const t = {
         zh: { none: '未申請', pending: '待處理', paper: '已收到紙卡', eqsl: '已收到電子卡', sent: '已發出紙卡', completed: '已交換完成', not_needed: '無需換卡', both: '雙向完成', rcvd: '已收到', snt: '已發出' },
@@ -99,288 +73,202 @@ function computeQslStatus(r) {
     return { cls: 'badge-none', text: t[lang].none };
 }
 
-// 🌟 國碼自訂選單邏輯
-let currentCountryCode = '+886';
+function escapeHtml(text) { 
+    if (!text) return ''; 
+    const div = document.createElement('div'); 
+    div.textContent = text; 
+    return div.innerHTML; 
+}
 
-window.selectCountry = function(code) {
-    currentCountryCode = code;
-    document.getElementById('selectedCountryCode').textContent = code;
-    document.getElementById('countryCodeWrapper').classList.remove('open');
-};
+function openLightbox(src) {
+    if (!src) return;
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+    document.getElementById('lightboxImg').src = '';
+}
 
-document.addEventListener('click', function(e) {
-    const wrapper = document.getElementById('countryCodeWrapper');
-    if (wrapper && !wrapper.contains(e.target)) {
-        wrapper.classList.remove('open');
+// ============================================================
+// 取得資料與渲染
+// ============================================================
+async function fetchData() {
+    const tbody = document.getElementById('qsoTableBody');
+    if (!tbody) return;
+
+    const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
+
+    _supabase.functions.invoke('clever-responder').then(({ data, error }) => {
+        if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
+            console.log("🧹 背景清理通知：", data.message);
+        }
+    });
+
+    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
+
+    if (error) { 
+        const errText = { zh: '資料載入失敗', cn: '数据载入失败', en: 'Data load failed', ja: 'データの読み込みに失敗しました' };
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${errText[currentLang]}</div></td></tr>`;
+        return; 
     }
-});
 
-// ============================================================
-// 主邏輯 (查詢與送出)
-// ============================================================
-document.addEventListener('DOMContentLoaded', function() {
-    const btnQuery = document.getElementById('btnQuery');
-    if (!btnQuery) return;
+    qslRecords = data.map(r => { if (!r.requests) r.requests = []; return r; });
+    filteredRecords = [...qslRecords]; 
+    currentPage = 1;
+    renderMainTable();
+}
 
-    let queryCallsign = '';
-    let matchedRecords = [];
-    let selectedRecordIds = new Set();
-    let isPhoneDisabled = false;
+function renderMainTable() {
+    const tbody = document.getElementById('qsoTableBody');
+    if (!tbody) return;
 
-    const queryInput = document.getElementById('queryCallsignInput');
-    const queryHint = document.getElementById('queryResultHint');
-    const queryResultCard = document.getElementById('queryResultCard');
-    const queryResultBody = document.getElementById('queryResultBody');
-    const shipInfoCard = document.getElementById('shipInfoCard');
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const selectedCountHint = document.getElementById('selectedCountHint');
-    const btnSubmit = document.getElementById('btnSubmitApplication');
+    const recordsToShow = filteredRecords.filter(r => r.status !== 'not_needed');
+
+    if (recordsToShow.length === 0) {
+        const emptyText = { zh: '📭 目前沒有通聯紀錄', cn: '📭 目前没有通联记录', en: '📭 No QSO records found', ja: '📭 交信記録がありません' };
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
+        updatePagination(0, 1); 
+        return;
+    }
+
+    const totalPages = Math.ceil(recordsToShow.length / itemsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
     
-    const shipPhone = document.getElementById('shipPhone');
-    const btnNoPhone = document.getElementById('btnNoPhone');
-    const phoneReq = document.getElementById('phoneReq');
-    const countryCodeWrapper = document.getElementById('countryCodeWrapper');
-    const countryCodeTrigger = document.getElementById('countryCodeTrigger');
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedRecords = recordsToShow.slice(startIndex, endIndex);
+
+    tbody.innerHTML = paginatedRecords.map(r => {
+        const st = computeQslStatus(r);
+        
+        const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
+        const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
+        
+        let displayBand = r.band;
+        let displayMode = r.mode;
+        let displayNote = r.note || '—';
+        let displayTime = r.time || '—';
+
+        if (r.note) {
+            const timeMatch = r.note.match(/\[([0-9]{2}:[0-9]{2})\]/);
+            if (timeMatch && timeMatch[1]) {
+                if (!r.time || r.time === '—') displayTime = timeMatch[1];
+                displayNote = displayNote.replace(/\[([0-9]{2}:[0-9]{2})\]\s*/, '');
+            }
+
+            const satMatch = r.note.match(/^\[(.*?)\]/);
+            if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
+                displayBand = satMatch[1]; 
+                displayMode = 'SAT';       
+                displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
+            } else {
+                const freqMatch = r.note.match(/FREQ:([\d.]+)/);
+                if (freqMatch && freqMatch[1]) {
+                    displayBand = freqMatch[1]; 
+                }
+            }
+            
+            const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
+            displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
+            displayNote = displayNote.replace('[LoTW]', 'LoTW ');
+            displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); 
+        }
+
+        return `<tr>
+            <td>${escapeHtml(r.date)}</td>
+            <td><strong>${escapeHtml(displayTime)}</strong></td>
+            <td><strong>${escapeHtml(r.call)}</strong></td>
+            <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
+            <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
+            <td style="text-align:center;">${recvImg}</td>
+            <td style="text-align:center;">${sentImg}</td>
+            <td><span class="${st.cls}">${st.text}</span></td>
+            <td>${escapeHtml(displayNote)}</td>
+        </tr>`;
+    }).join('');
+
+    updatePagination(recordsToShow.length, totalPages);
+}
+
+// 🌟 動態生成多語系分頁按鈕
+function updatePagination(totalItems, totalPages) {
+    let paginationContainer = document.getElementById('paginationContainer');
+    
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'paginationContainer';
+        paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
+        
+        const tableWrapper = document.querySelector('.table-wrapper');
+        if (tableWrapper) {
+            tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
+        }
+    }
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
+    const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
+
+    const paginationText = {
+        zh: { prev: '上一頁', next: '下一頁', page: '頁' },
+        cn: { prev: '上一页', next: '下一页', page: '页' },
+        en: { prev: 'Prev', next: 'Next', page: 'Page' },
+        ja: { prev: '前へ', next: '次へ', page: 'ページ' }
+    };
+    const t = paginationText[currentLang] || paginationText['zh'];
+
+    paginationContainer.innerHTML = `
+        <button id="btnPrevPage" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>${t.prev}</button>
+        <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">${t.page} ${currentPage} / ${totalPages}</span>
+        <button id="btnNextPage" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>${t.next}</button>
+    `;
+
+    document.getElementById('btnPrevPage').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderMainTable();
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    document.getElementById('btnNextPage').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderMainTable();
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('qsoTableBody')) return;
 
     applyLanguage();
 
-    if (countryCodeTrigger) {
-        countryCodeTrigger.addEventListener('click', function(e) {
-            e.stopPropagation();
-            countryCodeWrapper.classList.toggle('open');
-        });
-    }
-
-    if (btnNoPhone) {
-        btnNoPhone.addEventListener('click', function() {
-            isPhoneDisabled = !isPhoneDisabled;
-            if (isPhoneDisabled) {
-                shipPhone.style.display = 'none';
-                countryCodeWrapper.style.display = 'none';
-                phoneReq.style.display = 'none';
-                
-                btnNoPhone.style.background = '#0b2a4a';
-                btnNoPhone.style.color = '#fff';
-                btnNoPhone.style.borderColor = '#0b2a4a';
-                btnNoPhone.setAttribute('data-active', 'true');
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const keyword = this.value.trim().toUpperCase();
+            if (!keyword) {
+                filteredRecords = [...qslRecords];
             } else {
-                shipPhone.style.display = 'block';
-                countryCodeWrapper.style.display = 'block';
-                phoneReq.style.display = 'inline';
-                
-                btnNoPhone.style.background = '';
-                btnNoPhone.style.color = '';
-                btnNoPhone.style.borderColor = '#cbdae8';
-                btnNoPhone.removeAttribute('data-active');
+                filteredRecords = qslRecords.filter(r => r.call.includes(keyword));
             }
-            applyLanguage();
+            currentPage = 1;
+            renderMainTable();
         });
     }
 
-    const savedCall = localStorage.getItem('user_callsign');
-    if (savedCall) {
-        queryInput.value = savedCall;
-        setTimeout(() => doQuery(), 100);
-    }
+    const lb = document.getElementById('lightbox');
+    if (lb) lb.addEventListener('click', closeLightbox);
+    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
 
-    async function doQuery() {
-        const call = queryInput.value.trim().toUpperCase();
-        if (!call) { 
-            const hint = { zh: '請輸入呼號', cn: '请输入呼号', en: 'Please enter callsign', ja: 'コールサインを入力してください' };
-            showToast(hint[currentLang]); 
-            return; 
-        }
-        
-        queryCallsign = call;
-        localStorage.setItem('user_callsign', queryCallsign);
-        
-        queryHint.innerHTML = '<span style="color:#5a6e85;">⏳...</span>';
-
-        const { data, error } = await _supabase.from('qsl_records').select('*').eq('call', call);
-
-        if (error) { 
-            const errText = { zh: '❌ 系統錯誤', cn: '❌ 系统错误', en: '❌ System Error', ja: '❌ システムエラー' };
-            queryHint.innerHTML = `<span style="color:#b03030;">${errText[currentLang]}</span>`; 
-            return; 
-        }
-
-        matchedRecords = data || [];
-        if (matchedRecords.length === 0) {
-            queryResultCard.style.display = 'none';
-            shipInfoCard.style.display = 'none';
-            const notFound = { zh: '❌ 找不到此呼號的通聯記錄，無法申請換卡', cn: '❌ 找不到此呼号的通联记录，无法申请换卡', en: '❌ No QSO records found for this callsign.', ja: '❌ このコールサインの記録が見つかりません。' };
-            queryHint.innerHTML = `<span style="color:#b03030;">${notFound[currentLang]}</span>`;
-            showToast(notFound[currentLang]); return;
-        }
-
-        const foundText = { zh: '✅ 找到 ', cn: '✅ 找到 ', en: '✅ Found ', ja: '✅ ' };
-        const unitText = { zh: ' 筆通聯紀錄', cn: ' 条通联记录', en: ' QSO records', ja: '件の交信記録' };
-        queryHint.innerHTML = `<span style="color:#0e6b3e;">${foundText[currentLang]}${matchedRecords.length}${unitText[currentLang]}</span>`;
-        
-        selectedRecordIds.clear();
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
-        matchedRecords.forEach(r => { if (!r.requests) r.requests = []; });
-        
-        currentPage = 1;
-        renderQueryResult();
-        queryResultCard.style.display = 'block';
-        shipInfoCard.style.display = 'none';
-        
-        if (document.activeElement === btnQuery) {
-            queryResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        renderMyRequests();
-    }
-
-    function renderQueryResult() {
-        const totalPages = Math.ceil(matchedRecords.length / itemsPerPage);
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedRecords = matchedRecords.slice(startIndex, endIndex);
-
-        queryResultBody.innerHTML = paginatedRecords.map(r => {
-            const st = computeQslStatus(r);
-            const already = (r.requests || []).some(req => req.userCall === queryCallsign);
-            
-            let actionHtml = already 
-                ? `<span style="color:#7b3fa0; font-weight:bold; font-size:0.85rem; background:#f3e5ff; padding:4px 10px; border-radius:20px;" data-zh="已申請" data-cn="已申请" data-en="Requested" data-ja="申請済">已申請</span>` 
-                : `<input type="checkbox" class="record-checkbox" data-id="${r.id}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
-            
-            let displayBand = r.band;
-            let displayNote = r.note || '—';
-
-            if (r.note) {
-                const satMatch = r.note.match(/^\[(.*?)\]/);
-                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
-                    displayBand = satMatch[1]; 
-                } else {
-                    const freqMatch = r.note.match(/FREQ:([\d.]+)/);
-                    if (freqMatch && freqMatch[1]) {
-                        displayBand = freqMatch[1]; 
-                    }
-                }
-                
-                const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
-                displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim();
-                displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); 
-            }
-
-            return `<tr>
-                <td style="text-align:center;">${actionHtml}</td>
-                <td>${escapeHtml(r.date)}</td>
-                <td><strong>${escapeHtml(r.call)}</strong></td>
-                <td>${escapeHtml(displayBand)}</td> 
-                <td>${escapeHtml(r.mode)}</td>
-                <td><span class="${st.cls}">${st.text}</span></td>
-                <td>${escapeHtml(displayNote)}</td>
-            </tr>`;
-        }).join('');
-
-        applyLanguage();
-
-        document.querySelectorAll('.record-checkbox').forEach(cb => {
-            cb.addEventListener('change', function() {
-                const id = Number(this.dataset.id);
-                if (this.checked) selectedRecordIds.add(id); else selectedRecordIds.delete(id);
-                updateSelectedCount();
-            });
-        });
-        updateSelectedCount();
-        updateQueryPagination(totalPages);
-    }
-
-    // 🌟 動態生成多語系分頁按鈕
-    function updateQueryPagination(totalPages) {
-        let paginationContainer = document.getElementById('queryPaginationContainer');
-        
-        if (!paginationContainer) {
-            paginationContainer = document.createElement('div');
-            paginationContainer.id = 'queryPaginationContainer';
-            paginationContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;';
-            
-            const tableWrapper = document.querySelector('#queryResultCard .table-wrapper');
-            if (tableWrapper) {
-                tableWrapper.parentNode.insertBefore(paginationContainer, tableWrapper.nextSibling);
-            }
-        }
-
-        if (totalPages <= 1) {
-            paginationContainer.innerHTML = '';
-            return;
-        }
-
-        const btnStyle = 'padding: 8px 16px; border-radius: 40px; border: 1px solid #cbdae8; background: #fff; color: #1f3a5f; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;';
-        const disabledStyle = 'opacity: 0.5; cursor: not-allowed;';
-
-        // 🌟 分頁多語系字典
-        const paginationText = {
-            zh: { prev: '上一頁', next: '下一頁', page: '頁' },
-            cn: { prev: '上一页', next: '下一页', page: '页' },
-            en: { prev: 'Prev', next: 'Next', page: 'Page' },
-            ja: { prev: '前へ', next: '次へ', page: 'ページ' }
-        };
-        const t = paginationText[currentLang] || paginationText['zh'];
-
-        paginationContainer.innerHTML = `
-            <button id="btnQueryPrev" style="${btnStyle} ${currentPage === 1 ? disabledStyle : ''}" ${currentPage === 1 ? 'disabled' : ''}>${t.prev}</button>
-            <span style="font-size: 0.9rem; color: #5a6e85; font-weight: bold;">${t.page} ${currentPage} / ${totalPages}</span>
-            <button id="btnQueryNext" style="${btnStyle} ${currentPage === totalPages ? disabledStyle : ''}" ${currentPage === totalPages ? 'disabled' : ''}>${t.next}</button>
-        `;
-
-        document.getElementById('btnQueryPrev').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderQueryResult();
-            }
-        });
-
-        document.getElementById('btnQueryNext').addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderQueryResult();
-            }
-        });
-    }
-
-    function updateSelectedCount() {
-        const n = selectedRecordIds.size;
-        const countText = { zh: '已選擇 ', cn: '已选择 ', en: 'Selected ', ja: '選択済み: ' };
-        const unitText = { zh: ' 筆通聯', cn: ' 条通联', en: ' QSOs', ja: '件' };
-        const hintText = { zh: '請勾選要申請的通聯', cn: '请勾选要申请的通联', en: 'Please select QSOs', ja: '交信を選択してください' };
-
-        selectedCountHint.textContent = n > 0 ? `${countText[currentLang]}${n}${unitText[currentLang]}` : hintText[currentLang];
-        shipInfoCard.style.display = n > 0 ? 'block' : 'none';
-    }
-
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const boxes = document.querySelectorAll('.record-checkbox');
-            boxes.forEach(cb => {
-                cb.checked = this.checked;
-                const id = Number(cb.dataset.id);
-                if (this.checked) selectedRecordIds.add(id); else selectedRecordIds.delete(id);
-            });
-            updateSelectedCount();
-        });
-    }
-
-    if (btnSubmit) {
-        btnSubmit.addEventListener('click', async function() {
-            if (selectedRecordIds.size === 0) { 
-                const hint = { zh: '請至少勾選一筆', cn: '请至少勾选一条', en: 'Please select at least one', ja: '少なくとも1件選択してください' };
-                showToast(hint[currentLang]); 
-                return; 
-            }
-            const name = document.getElementById('shipName').value.trim();
-            const rawPhone = shipPhone.value.trim();
-            const zip = document.getElementById('shipZip').value.trim();
-            const address = document.getElementById('shipAddress').value.trim();
-            const note = document.getElementById('shipNote').value.trim();
-
-            let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
-
-            const errorMsg = { zh: '請填寫完整收件資訊', cn: '请填写完整收件信息', en: 'Please fill in all required fields.', ja: '必須項目を入力してください。' };
-            if (!name || !zip || !address) { showToast(errorMsg
+    fetchData();
+});
