@@ -14,7 +14,7 @@ const btnLogout = document.getElementById('btnLogout');
 const manageTableBody = document.getElementById('manageTableBody');
 let selectedAdifFile = null;
 
-// 紀錄網頁載入的時間
+// 紀錄網頁載入的時間 (備用)
 const pageLoadTime = new Date();
 
 // 共用工具
@@ -86,7 +86,7 @@ function checkUser() {
 }
 
 // ============================================================
-// 網頁版本檢測 (CF 更新檢查)
+// 網頁版本檢測 (CF 更新檢查) - 改用檔案長度比對
 // ============================================================
 async function checkUpdate() {
     const statusEl = document.getElementById('updateStatus');
@@ -96,23 +96,23 @@ async function checkUpdate() {
     btn.disabled = true;
 
     try {
-        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { method: 'HEAD', cache: 'no-store' });
-        const lastModifiedHeader = response.headers.get('last-modified');
+        // 1. 取得目前網頁的原始碼長度
+        const currentHtmlLength = document.documentElement.outerHTML.length;
+
+        // 2. 去向伺服器要最新的 manage.html (加上時間戳避開快取)
+        const response = await fetch(`manage.html?t=${new Date().getTime()}`, { cache: 'no-store' });
+        const text = await response.text();
         
-        if (lastModifiedHeader) {
-            const serverTime = new Date(lastModifiedHeader);
-            if (serverTime.getTime() > pageLoadTime.getTime() + 2000) {
-                statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器已更新 (${serverTime.toLocaleTimeString()})。<br>請重新整理載入最新畫面。`;
-                statusEl.style.color = '#0e6b3e';
-            } else {
-                statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 快取尚未更新。`;
-                statusEl.style.color = '#5a6e85';
-            }
+        // 3. 比對伺服器檔案長度與目前畫面的長度 (誤差超過 50 個字元就當作有更新)
+        if (Math.abs(text.length - currentHtmlLength) > 50) {
+            statusEl.innerHTML = `✅ <b>發現新版本！</b><br>伺服器上的檔案已更新。<br>請重新整理載入最新畫面。`;
+            statusEl.style.color = '#0e6b3e';
         } else {
-            statusEl.innerHTML = `ℹ️ 無法取得時間標頭，請手動按 F5 測試。`;
+            statusEl.innerHTML = `☕ <b>目前是最新版本</b><br>Cloudflare 伺服器與本地檔案一致。`;
             statusEl.style.color = '#5a6e85';
         }
     } catch (error) {
+        console.error('檢查更新失敗', error);
         statusEl.innerHTML = '❌ 檢查失敗，請確認網路連線。';
         statusEl.style.color = '#b03030';
     }
@@ -121,7 +121,7 @@ async function checkUpdate() {
 }
 
 // ============================================================
-// 雲端空間監測 (改用資料庫統計，避開 Supabase Storage 快取幽靈)
+// 雲端空間監測 (改用資料庫統計，避開 Supabase Storage 快取)
 // ============================================================
 async function calculateStorageUsage() {
     const dbBar = document.getElementById('dbUsageBar');
