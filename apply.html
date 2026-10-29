@@ -23,7 +23,6 @@
             </ul>
             
             <div style="display: flex; align-items: center; gap: 12px;">
-                <!-- 四國語言切換開關 -->
                 <div class="lang-switch" id="langToggle" title="Switch Language">
                     <div class="lang-slider" id="langSlider"></div>
                     <span class="lang-option" data-lang="zh" onclick="changeLang('zh')">繁</span>
@@ -72,25 +71,47 @@
         <section class="card" id="shipInfoCard" style="display:none;">
             <h2 data-zh="📮 收件資訊" data-cn="📮 收件信息" data-en="📮 Shipping Info" data-ja="📮 発送先情報">📮 收件資訊</h2>
             <div class="card-sub" data-zh="請填寫您的收件資訊，以便寄送 QSL 卡。" data-cn="请填写您的收件信息，以便寄送 QSL 卡。" data-en="Please fill in your shipping information." data-ja="QSLカード発送のため、発送先情報を入力してください。">請填寫您的收件資訊，以便寄送 QSL 卡。</div>
+            
             <div class="ship-form">
                 <div class="form-row">
                     <label data-zh="收件人" data-cn="收件人" data-en="Recipient" data-ja="受取人">收件人 <span class="required">*</span></label>
                     <input type="text" id="shipName" placeholder="請輸入收件人姓名" data-zh-placeholder="請輸入收件人姓名" data-cn-placeholder="请输入收件人姓名" data-en-placeholder="Full Name" data-ja-placeholder="氏名を入力">
                 </div>
+                
+                <!-- 手機與郵遞區號並排區塊 -->
                 <div class="row-group">
-                    <div class="form-row">
-                        <label data-zh="手機號碼" data-cn="手机号码" data-en="Phone" data-ja="電話番号">手機號碼 <span class="required">*</span></label>
-                        <input type="tel" id="shipPhone" placeholder="例如 0912345678" data-zh-placeholder="例如 0912345678" data-cn-placeholder="例如 0912345678" data-en-placeholder="e.g. 0912345678" data-ja-placeholder="例：0912345678">
+                    <div class="form-row" style="flex: 2;">
+                        <label data-zh="手機號碼" data-cn="手机号码" data-en="Phone" data-ja="電話番号">手機號碼 <span class="required" id="phoneReq">*</span></label>
+                        <div style="display: flex; gap: 6px;">
+                            <!-- 國碼下拉選單 -->
+                            <select id="shipCountryCode" style="width: 100px; padding: 12px; border-radius: 12px; border: 1.5px solid #cbdae8; background: #f8fbfe; font-family: inherit; font-size: 1rem; outline: none;">
+                                <option value="+886">+886 (TW)</option>
+                                <option value="+81">+81 (JP)</option>
+                                <option value="+86">+86 (CN)</option>
+                                <option value="+1">+1 (US)</option>
+                                <option value="+44">+44 (UK)</option>
+                                <option value="+61">+61 (AU)</option>
+                                <option value="+82">+82 (KR)</option>
+                                <option value="+852">+852 (HK)</option>
+                                <option value="+65">+65 (SG)</option>
+                            </select>
+                            <!-- 手機輸入框 -->
+                            <input type="tel" id="shipPhone" placeholder="例如 0912345678" style="flex: 1;" data-zh-placeholder="例如 0912345678" data-cn-placeholder="例如 0912345678" data-en-placeholder="e.g. 0912345678" data-ja-placeholder="例：0912345678">
+                            <!-- 無需提供按鈕 -->
+                            <button type="button" id="btnNoPhone" class="btn btn-outline" style="padding: 0 16px; border-radius: 12px; font-size: 0.85rem; white-space: nowrap; border: 1.5px solid #cbdae8;">無需提供</button>
+                        </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" style="flex: 1;">
                         <label data-zh="郵遞區號" data-cn="邮编" data-en="Zip Code" data-ja="郵便番号">郵遞區號 <span class="required">*</span></label>
                         <input type="text" id="shipZip" placeholder="例如 100" maxlength="6" data-zh-placeholder="例如 100" data-cn-placeholder="例如 100" data-en-placeholder="e.g. 100" data-ja-placeholder="例：100">
                     </div>
                 </div>
+
                 <div class="form-row">
                     <label data-zh="地址" data-cn="地址" data-en="Address" data-ja="住所">地址 <span class="required">*</span></label>
                     <input type="text" id="shipAddress" placeholder="例如 台北市中正區重慶南路一段122號" data-zh-placeholder="例如 台北市中正區重慶南路一段122號" data-cn-placeholder="例如 台北市中正区重庆南路一段122号" data-en-placeholder="e.g. No. 122, Sec. 1, Chongqing S. Rd., Zhongzheng Dist., Taipei City" data-ja-placeholder="例：台北市中正区重慶南路一段122号">
                 </div>
+                
                 <div class="form-row">
                     <label data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</label>
                     <input type="text" id="shipNote" placeholder="選填，例如指定寄送方式" data-zh-placeholder="選填，例如指定寄送方式" data-cn-placeholder="选填，例如指定寄送方式" data-en-placeholder="Optional, e.g. shipping method" data-ja-placeholder="任意（発送方法など）">
