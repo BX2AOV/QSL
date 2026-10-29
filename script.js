@@ -96,7 +96,7 @@ async function fetchData() {
     const emptyText = { zh: '⏳ 資料載入中...', cn: '⏳ 数据载入中...', en: '⏳ Loading data...', ja: '⏳ データ読み込み中...' };
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
 
-    // 🌟 背景觸發清理機制 (呼叫你建立的 clever-responder)
+    // 🌟 背景觸發清理機制
     _supabase.functions.invoke('clever-responder').then(({ data, error }) => {
         if (data && data.success && data.message !== '已清理 0 筆過期紀錄的圖片。') {
             console.log("🧹 背景清理通知：", data.message);
@@ -132,7 +132,7 @@ function renderMainTable() {
     tbody.innerHTML = recordsToShow.map(r => {
         const st = computeQslStatus(r);
         
-        // 如果沒有圖片，就直接顯示空白字串 ''，不再顯示虛線框
+        // 沒有圖片就留白
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
         
@@ -142,23 +142,32 @@ function renderMainTable() {
         let displayTime = r.time || '—';
 
         if (r.note) {
+            // 抓取時間
             const timeMatch = r.note.match(/\[([0-9]{2}:[0-9]{2})\]/);
             if (timeMatch && timeMatch[1]) {
                 if (!r.time || r.time === '—') displayTime = timeMatch[1];
                 displayNote = displayNote.replace(/\[([0-9]{2}:[0-9]{2})\]\s*/, '');
             }
 
+            // 抓取衛星名稱，有衛星就顯示衛星名稱
             const satMatch = r.note.match(/^\[(.*?)\]/);
             if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
                 displayBand = satMatch[1]; 
                 displayMode = 'SAT';       
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
+            } else {
+                // 如果沒有衛星，但有頻率，就把頻段換成頻率
+                const freqMatch = r.note.match(/FREQ:([\d.]+)/);
+                if (freqMatch && freqMatch[1]) {
+                    displayBand = freqMatch[1]; 
+                }
             }
             
+            // 翻譯備註並隱藏技術字眼
             const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
-            
             displayNote = displayNote.replace('[LoTW]', 'LoTW ');
+            displayNote = displayNote.replace(/FREQ:[\d.]+\s*/, ''); 
         }
 
         return `<tr>
