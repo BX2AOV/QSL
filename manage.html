@@ -25,6 +25,7 @@
             </div>
         </header>
 
+        <!-- 登入區塊 -->
         <section class="card" id="loginSection">
             <h2>🔐 管理員登入</h2>
             <div class="card-sub">請輸入管理員帳號密碼。</div>
@@ -35,12 +36,14 @@
             </div>
         </section>
 
+        <!-- 管理後台區塊 -->
         <section class="card" id="adminPanel" style="display:none;">
             <div class="flex-between" style="margin-bottom:16px;">
                 <h2>⚙️ 管理後台</h2>
                 <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
             </div>
 
+            <!-- 監測面板 -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px;">
                 <div style="background: #f8fbfe; border: 1px solid #dbe7f3; border-radius: 16px; padding: 16px;">
                     <div style="font-size: 0.85rem; color: #5a6e85; margin-bottom: 6px;">📊 資料庫文字 (上限 500 MB)</div>
@@ -64,10 +67,9 @@
                     <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (ADIF)</h3>
                     <div class="upload-zone" style="padding:20px;">
                         <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
-                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">點擊選擇 ADIF 檔</label>
-                        <div class="file-hint" style="margin-top:6px;">可以重複點擊，分次加入多個檔案</div>
-                        <!-- 這裡用來顯示已選了幾個檔案 -->
-                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.9rem; color: #0066cc; font-weight: bold; margin-top: 10px;"></div>
+                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
+                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式</div>
+                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
                     </div>
                     <div style="display:flex; gap:10px; margin-top:12px;">
                         <button class="btn btn-primary" id="btnUploadADIF" style="flex:1;">全部上傳並匯入</button>
@@ -93,17 +95,19 @@
 
             <h3 style="font-size:1.1rem; margin-top: 30px; margin-bottom:12px; color:#1a3a5c;">🗑️ 管理現有通聯紀錄與使用者申請</h3>
             <div class="table-wrapper">
-                <table style="min-width:1100px;">
+                <!-- 因為加上了寄出天數提醒，拓寬表格 -->
+                <table style="min-width: 1200px;">
                     <thead>
                         <tr>
                             <th>日期</th><th>時間</th><th>呼號</th><th>頻段</th><th>模式</th>
                             <th>使用者申請 (地址/電話/狀態)</th>
-                            <th>通聯圖片管理</th>
+                            <th>通聯圖片管理 (收到/發出)</th>
+                            <th>手動狀態</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="manageTableBody">
-                        <tr><td colspan="8"><div class="empty-state">載入中...</div></td></tr>
+                        <tr><td colspan="9"><div class="empty-state">載入中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
