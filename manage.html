@@ -1,1 +1,74 @@
-1
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理員後台 - BX2AOV QSL confirm</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header-bar">
+            <div class="logo-area">
+                <span class="logo-icon">📡</span>
+                <span>BX2AOV QSL confirm</span>
+                <span class="callsign-badge">BX2AOV</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" class="nav-tab">總覽</a></li>
+                <li><a href="apply.html" class="nav-tab">我的申請</a></li>
+                <li><a href="manage.html" class="nav-tab active">管理員</a></li>
+            </ul>
+            <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                <span class="role-badge" id="roleBadge">未登入</span>
+            </div>
+        </header>
+
+        <section class="card" id="loginSection">
+            <h2>🔐 管理員登入</h2>
+            <div class="card-sub">請輸入管理員帳號密碼。</div>
+            <div class="admin-login-box" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                <input type="text" id="adminUser" placeholder="管理員帳號" autocomplete="off">
+                <input type="password" id="adminPassword" placeholder="密碼" autocomplete="off">
+                <button class="btn btn-primary" id="btnLogin" style="margin-top: 10px;">登入</button>
+            </div>
+        </section>
+
+        <section class="card" id="adminPanel" style="display:none;">
+            <div class="flex-between" style="margin-bottom:16px;">
+                <h2>⚙️ 管理後台</h2>
+                <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
+            </div>
+            <div class="card-sub">在這裡上傳 ADIF 通聯紀錄，或手動新增單筆資料。</div>
+
+            <div class="admin-upload-grid">
+                <div>
+                    <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">📄 批量上傳 (ADIF)</h3>
+                    <div class="upload-zone" style="padding:20px;">
+                        <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
+                        <label for="adifFile" class="upload-label" style="padding:10px 20px; font-size:0.9rem;">選擇 ADIF 檔</label>
+                        <div class="file-hint" style="margin-top:6px;">支援 .adi / .adif 格式</div>
+                        <div id="adifFileNameDisplay" class="file-name" style="font-size:0.85rem;"></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
+                </div>
+                <div>
+                    <h3 style="font-size:1.1rem; margin-bottom:12px; color:#1a3a5c;">✏️ 手動新增單筆</h3>
+                    <div class="manual-form">
+                        <input type="date" id="manualDate" style="color:#5a6e85;">
+                        <input type="text" id="manualCall" placeholder="呼號 (例如 BM2XXX)">
+                        <input type="text" id="manualBand" placeholder="頻段 (例如 20m)">
+                        <input type="text" id="manualMode" placeholder="模式 (例如 SSB)">
+                        <input type="text" id="manualNote" placeholder="備註 (選填)">
+                        <button class="btn btn-primary" id="btnAddManual">新增紀錄</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="toast" class="toast">操作成功</div>
+    <script src="manage.js"></script>
+</body>
+</html>1
