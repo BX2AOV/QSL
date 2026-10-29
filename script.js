@@ -47,12 +47,13 @@ async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">⏳ 資料載入中...</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>`;
 
-    const { data, error } = await _supabase.from('qsl_records').select('*').order('id', { ascending: true });
+    // 依照日期和時間排序
+    const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false }).order('time', { ascending: false });
 
     if (error) { 
-        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">資料載入失敗</div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">資料載入失敗</div></td></tr>`;
         return; 
     }
 
@@ -66,7 +67,7 @@ function renderMainTable() {
     if (!tbody) return;
 
     if (qslRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">📭 目前沒有通聯紀錄</div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">📭 目前沒有通聯紀錄</div></td></tr>`;
         return;
     }
     
@@ -75,23 +76,25 @@ function renderMainTable() {
         const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '<div class="qsl-thumb-empty">—</div>';
         
+        // 預設顯示資料庫的原始內容
         let displayBand = r.band;
         let displayMode = r.mode;
         let displayNote = r.note || '—';
+        let displayTime = r.time || '—'; // 抓取獨立的時間欄位
 
-        // 偵測備註欄位是否有 [衛星名稱]
+        // 如果資料庫的備註欄位還有殘留的 [ARISS] 等字眼，自動替換頻段與模式
         if (r.note) {
             const satMatch = r.note.match(/^\[(.*?)\]/);
             if (satMatch && satMatch[1]) {
-                displayBand = satMatch[1]; // 把頻段換成衛星名稱
-                displayMode = 'SAT';       // 把模式換成 SAT
-                // 把備註前面的 [XX] 拿掉，只留後面的文字
+                displayBand = satMatch[1];
+                displayMode = 'SAT';
                 displayNote = r.note.replace(/^\[.*?\]\s*/, '') || '—';
             }
         }
 
         return `<tr>
             <td>${escapeHtml(r.date)}</td>
+            <td><strong>${escapeHtml(displayTime)}</strong></td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
