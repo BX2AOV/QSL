@@ -186,3 +186,21 @@ tr:hover td { background: #fafdff; }
     
     .search-box { max-width: 100%; width: 100%; margin-top: 10px; }
 }
+
+/* ===== 管理後台篩選下拉選單 ===== */
+.filter-select {
+    padding: 10px 16px;
+    border-radius: 40px;
+    border: 1.5px solid #cbdae8;
+    font-size: 0.9rem;
+    background: #ffffff;
+    color: #1f3a5f;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.25s;
+}
+.filter-select:focus {
+    border-color: #0066cc;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+}
