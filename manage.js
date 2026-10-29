@@ -161,7 +161,6 @@ async function renderAdminTable() {
             }).join('');
         }
 
-        // 圖片區塊
         const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.receivedImg}')">` : '';
         const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
 
@@ -332,11 +331,17 @@ function parseADIF(content) {
         let value = '';
         if (fieldLen !== null && !isNaN(fieldLen)) { value = content.substring(pos, pos + fieldLen).trim(); pos += fieldLen; } 
         else { if (fieldName === 'EOR') { if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } } continue; }
-        if (fieldName === 'EOR') { if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } } 
-        else if (fieldName === 'QSO_DATE') { let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; } 
+        
+        if (fieldName === 'EOR') { 
+            if (Object.keys(current).length > 0) { records.push({ ...current }); current = {}; } 
+        } 
+        else if (fieldName === 'QSO_DATE') { 
+            let d = value; if (d.length === 8) d = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; current.date = d; 
+        } 
         else if (fieldName === 'CALL') { current.call = value.toUpperCase(); } 
         else if (fieldName === 'BAND') { current.band = value; } 
         else if (fieldName === 'MODE') { current.mode = value.toUpperCase(); } 
+        else if (fieldName === 'SAT_NAME') { current.satName = value.toUpperCase(); } // 抓取衛星名稱
         else if (fieldName === 'COMMENT' || fieldName === 'NOTES') { current.note = (current.note || '') + value; }
     }
     if (Object.keys(current).length > 0) records.push({ ...current });
@@ -352,7 +357,21 @@ async function uploadADIF() {
         let newRecords = []; 
         for (const p of parsed) {
             if (!p.call) continue;
-            newRecords.push({ date: p.date || '—', call: p.call, band: p.band || '—', mode: p.mode || '—', note: p.note || '', requests: [] });
+            
+            // 如果有衛星名稱，把備註格式化成 "[衛星名稱] 衛星通聯"
+            let noteStr = p.note || '';
+            if (p.satName) {
+                noteStr = `[${p.satName}] 衛星通聯 ${noteStr}`.trim();
+            }
+
+            newRecords.push({ 
+                date: p.date || '—', 
+                call: p.call, 
+                band: p.band || '—', 
+                mode: p.mode || '—', 
+                note: noteStr, 
+                requests: [] 
+            });
         }
         if (newRecords.length > 0) {
             btnUploadADIF.disabled = true; btnUploadADIF.textContent = `⏳ 匯入中...`;
