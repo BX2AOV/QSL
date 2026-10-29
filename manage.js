@@ -1,5 +1,5 @@
 /* ============================================================
-   manage.js - 管理員後台完整邏輯 (包含圖片刪除與版本檢測)
+   manage.js - 管理員後台完整邏輯
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -128,7 +128,7 @@ async function checkUpdate() {
 }
 
 // ============================================================
-// 雲端空間監測 (由資料庫計算)
+// 雲端空間監測
 // ============================================================
 async function calculateStorageUsage() {
     const dbBar = document.getElementById('dbUsageBar');
@@ -167,7 +167,7 @@ async function calculateStorageUsage() {
 }
 
 // ============================================================
-// 渲染管理表格與操作
+// 渲染管理表格與操作 (包含圖片刪除按鈕)
 // ============================================================
 async function renderAdminTable() {
     if (!manageTableBody) return;
@@ -206,22 +206,27 @@ async function renderAdminTable() {
             }).join('');
         }
 
-        // 收到圖片區塊
+        // 這裡重新排版圖片區塊，加上明顯的刪除按鈕
+        const recvImgHtml = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.receivedImg}')">` : '';
+        const recvBtnHtml = r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+
+        const sentImgHtml = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px; object-fit:cover; border-radius:4px;" onclick="openLightbox('${r.sentImg}')">` : '';
+        const sentBtnHtml = r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+
         const recvHtml = `
-            <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <div class="upload-btns" style="margin-bottom:8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
                 <label for="recv-${r.id}">📥 收到</label>
                 <input type="file" id="recv-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'received', event)">
-                ${r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.receivedImg}')">` : ''}
-                ${r.receivedImg ? `<button onclick="deleteQslImage(${r.id}, 'received')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>` : ''}
+                ${recvImgHtml}
+                ${recvBtnHtml}
             </div>`;
 
-        // 發出圖片區塊
         const sentHtml = `
-            <div class="upload-btns" style="display:flex; align-items:center; gap:6px;">
+            <div class="upload-btns" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
                 <label for="sent-${r.id}">📤 發出</label>
                 <input type="file" id="sent-${r.id}" accept="image/*" onchange="handleQslImageUpload(${r.id}, 'sent', event)">
-                ${r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" style="width:40px;height:28px;" onclick="openLightbox('${r.sentImg}')">` : ''}
-                ${r.sentImg ? `<button onclick="deleteQslImage(${r.id}, 'sent')" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除</button>` : ''}
+                ${sentImgHtml}
+                ${sentBtnHtml}
             </div>`;
 
         return `<tr>
@@ -248,11 +253,7 @@ async function deleteQslImage(recordId, type) {
 
     // 2. 解析檔名，準備從 Storage 刪除實體檔案
     try {
-        // 網址格式通常長這樣：https://.../storage/v1/object/public/qsl-images/12345.jpg
-        // 我們把最後面的檔名切出來
         const fileName = imgUrl.split('/').pop();
-        
-        // 執行 Storage 刪除
         if (fileName) {
             await _supabase.storage.from('qsl-images').remove([fileName]);
         }
