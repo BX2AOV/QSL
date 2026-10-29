@@ -1,5 +1,5 @@
 /* ============================================================
-   apply.js - 申請頁面專用邏輯 (含密碼解鎖功能)
+   apply.js - 申請頁面專用邏輯 (最終獨立解鎖版)
    ============================================================ */
 
 const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
@@ -7,7 +7,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentLang = localStorage.getItem('site_lang') || 'zh';
-let unlockPasswords = {}; // 儲存本次解鎖的密碼 { recordId: 'password' }
+// 儲存已經解鎖的紀錄 ID 與真實地址資訊
+let unlockedRecords = {}; 
 
 window.changeLang = function(lang) {
     currentLang = lang;
@@ -183,6 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedRecordIds.clear();
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
 
+        // 查詢時，一律先拉取「未解鎖」的資料（因為我們傳入空密碼，資料庫會回傳上鎖狀態）
         await loadMyRequests();
         renderQueryResult();
         queryResultCard.style.display = 'block';
@@ -192,19 +194,18 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadMyRequests() {
         if (!queryCallsign) { myRequests = []; return; }
         
-        // 這裡我們把使用者解鎖過的密碼也一併傳給 RPC
-        // 注意：RPC 參數 p_password 目前只能處理單一一組密碼。
-        // 如果同一個呼號有多筆不同密碼的申請單，這裡會以最後解鎖的密碼為準。
-        // 但因為大部分情況每個人只會設一組密碼，所以這樣做是合理的。
-        const pwd = Object.values(unlockPasswords)[0] || ''; 
-
+        // 這裡傳入空密碼，讓資料庫強制回傳「上鎖」狀態。真實解鎖由點擊按鈕時呼叫 RPC 處理。
         const { data, error } = await _supabase.rpc('my_qsl_requests', { 
             p_user_call: queryCallsign,
-            p_password: pwd
+            p_password: '' 
         });
         
-        if (!error && data) myRequests = data;
-        else myRequests = [];
+        if (error) {
+            console.error("載入失敗:", error);
+            myRequests = [];
+        } else {
+            myRequests = data || [];
+        }
     }
 
     function isAlreadyRequested(recordId) {
@@ -280,11 +281,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
-            const password = document.getElementById('shipPassword').value.trim(); // 👈 取得設定的密碼
+            const password = document.getElementById('shipPassword').value.trim(); 
 
             if (!name || !zip || !address) { showToast('請填寫完整收件資訊'); return; }
             if (!isPhoneDisabled && !rawPhone) { showToast('請填寫手機或點擊無需提供'); return; }
-            if (!password || password.length < 4) { showToast('請設定至少 4 位數的查詢密碼'); return; } // 👈 驗證密碼
+            if (!password || password.length < 4) { showToast('請設定至少 4 位數的查詢密碼'); return; } 
 
             let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
 
@@ -301,13 +302,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     p_ship_zip: zip,
                     p_ship_addr: address,
                     p_ship_note: note,
-                    p_password: password // 👈 傳入密碼
+                    p_password: password 
                 });
 
                 if (error) { hasError = true; console.error(error); } 
                 else { 
                     count++; 
-                    unlockPasswords[id] = password; // 送出成功後自動記住解鎖密碼
                 }
             }
 
@@ -353,23 +353,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const rec = recordMap.get(Number(req.record_id)) || {};
             const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
             
-            // 🌟 處理解鎖顯示
-            let statusHtml = `<span class="${cls}">${txt}</span>`;
+            // 🌟 判斷這筆紀錄是否已經在前端被解鎖過
+            const isUnlocked = unlockedRecords[req.record_id];
+
+            let statusHtml = '';
             
-            if (req.is_locked) {
-                statusHtml = `
-                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span style="color:#b03030; font-size:0.8rem;">🔒 已上鎖</span></div>
-                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}" style="background:#0b2a4a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">🔓 解鎖詳情</button>
-                `;
-            } else {
-                // 解鎖後顯示完整地址
-                const fullAddr = `${escapeHtml(req.ship_zip)} ${escapeHtml(req.ship_addr)}`;
+            if (isUnlocked) {
+                // 已解鎖，顯示真實資料
+                const data = unlockedRecords[req.record_id];
                 statusHtml = `
                     <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span></div>
                     <div style="font-size:0.8rem; color:#333;">
-                        <strong>地址：</strong>${fullAddr}<br>
-                        <strong>手機：</strong>${escapeHtml(req.ship_phone || '未提供')}
+                        <strong>地址：</strong>${escapeHtml(data.ship_zip)} ${escapeHtml(data.ship_addr)}<br>
+                        <strong>手機：</strong>${escapeHtml(data.ship_phone || '未提供')}
                     </div>
+                `;
+            } else {
+                // 未解鎖
+                statusHtml = `
+                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span style="color:#b03030; font-size:0.8rem;">🔒 已上鎖</span></div>
+                    <button class="btn-unlock" data-id="${escAttr(req.record_id)}" style="background:#0b2a4a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">🔓 解鎖詳情</button>
                 `;
             }
 
@@ -383,24 +386,34 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>`;
         }).join('');
 
-        // 綁定解鎖按鈕事件
+        // 綁定解鎖按鈕事件 (使用剛剛新建的單筆驗證 RPC)
         document.querySelectorAll('.btn-unlock').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const id = this.dataset.id;
                 const pwd = prompt('請輸入您當初設定的查詢密碼：');
                 if (!pwd) return;
                 
-                unlockPasswords[id] = pwd;
-                await loadMyRequests();
-                renderMyRequests(); // 重新渲染，如果密碼正確就會顯示地址
-                
-                // 檢查解鎖是否成功
-                const checkReq = myRequests.find(r => r.record_id == id);
-                if (checkReq && checkReq.is_locked) {
-                    showToast('❌ 密碼錯誤，無法解鎖');
-                    delete unlockPasswords[id]; // 移除錯誤的密碼
-                } else {
+                // 呼叫單筆驗證 RPC
+                const { data, error } = await _supabase.rpc('verify_qsl_password', { 
+                    p_record_id: Number(id),
+                    p_user_call: queryCallsign,
+                    p_password: pwd
+                });
+
+                if (error) {
+                    showToast('❌ 驗證失敗，請稍後再試');
+                    console.error(error);
+                } else if (data && data.success) {
                     showToast('✅ 解鎖成功');
+                    // 把真實資料存進 unlockedRecords 中
+                    unlockedRecords[id] = {
+                        ship_addr: data.ship_addr,
+                        ship_zip: data.ship_zip,
+                        ship_phone: data.ship_phone
+                    };
+                    renderMyRequests(); // 重新渲染畫面
+                } else {
+                    showToast('❌ 密碼錯誤');
                 }
             });
         });
