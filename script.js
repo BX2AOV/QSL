@@ -120,16 +120,21 @@ function renderMainTable() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
-    if (filteredRecords.length === 0) {
-        const emptyText = { zh: '📭 找不到符合的通聯紀錄', cn: '📭 找不到符合的通联记录', en: '📭 No matching QSO records found', ja: '📭 一致する交信記録がありません' };
+    // 過濾掉「無需換卡」的紀錄
+    const recordsToShow = filteredRecords.filter(r => r.status !== 'not_needed');
+
+    if (recordsToShow.length === 0) {
+        const emptyText = { zh: '📭 目前沒有通聯紀錄', cn: '📭 目前没有通联记录', en: '📭 No QSO records found', ja: '📭 交信記録がありません' };
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${emptyText[currentLang]}</div></td></tr>`;
         return;
     }
     
-    tbody.innerHTML = filteredRecords.map(r => {
+    tbody.innerHTML = recordsToShow.map(r => {
         const st = computeQslStatus(r);
-        const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '<div class="qsl-thumb-empty">—</div>';
-        const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '<div class="qsl-thumb-empty">—</div>';
+        
+        // 🌟 如果沒有圖片，就直接顯示空白字串 ''，不再顯示虛線框
+        const recvImg = r.receivedImg ? `<img src="${r.receivedImg}" class="qsl-thumb" onclick="openLightbox('${r.receivedImg}')">` : '';
+        const sentImg = r.sentImg ? `<img src="${r.sentImg}" class="qsl-thumb" onclick="openLightbox('${r.sentImg}')">` : '';
         
         let displayBand = r.band;
         let displayMode = r.mode;
@@ -150,11 +155,9 @@ function renderMainTable() {
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             }
             
-            // 翻譯備註 (日文改為衛星通信)
             const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
             displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim() || '—';
             
-            // 處理 LoTW 文字
             displayNote = displayNote.replace('[LoTW]', 'LoTW ');
         }
 
@@ -164,8 +167,8 @@ function renderMainTable() {
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
-            <td>${recvImg}</td>
-            <td>${sentImg}</td>
+            <td style="text-align:center;">${recvImg}</td>
+            <td style="text-align:center;">${sentImg}</td>
             <td><span class="${st.cls}">${st.text}</span></td>
             <td>${escapeHtml(displayNote)}</td>
         </tr>`;
