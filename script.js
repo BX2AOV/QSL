@@ -8,7 +8,6 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
 
-// 共用工具
 function showToast(msg) { 
     const t = document.getElementById('toast'); 
     if(!t) return; 
@@ -23,12 +22,23 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
-// 計算 QSL 狀態
+// 狀態判斷 (加入 eqsl 與 無需換卡)
 function computeQslStatus(r) {
+    // 如果管理員有手動設定狀態，優先顯示
+    if (r.status === 'received_eqsl') return { cls: 'badge-received', text: '已收到電子卡' };
+    if (r.status === 'not_needed') return { cls: 'badge-none', text: '無需換卡' };
+    if (r.status === 'received_paper') return { cls: 'badge-received', text: '已收到紙卡' };
+    if (r.status === 'sent') return { cls: 'badge-sent', text: '已發出紙卡' };
+    if (r.status === 'pending') return { cls: 'badge-pending', text: '待處理' };
+
+    // 如果沒有手動狀態，判斷圖片
     if (r.receivedImg && r.sentImg) return { cls: 'badge-completed', text: '雙向完成' };
     if (r.receivedImg) return { cls: 'badge-received', text: '已收到' };
     if (r.sentImg) return { cls: 'badge-sent', text: '已發出' };
+    
+    // 判斷有沒有人申請
     if (r.requests && r.requests.length > 0) return { cls: 'badge-pending', text: '待處理' };
+    
     return { cls: 'badge-none', text: '未申請' };
 }
 
@@ -42,14 +52,12 @@ function closeLightbox() {
     document.getElementById('lightboxImg').src = '';
 }
 
-// 從資料庫獲取資料
 async function fetchData() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
 
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">⏳ 資料載入中...</div></td></tr>`;
 
-    // 依照日期排序
     const { data, error } = await _supabase.from('qsl_records').select('*').order('date', { ascending: false });
 
     if (error) { 
@@ -61,7 +69,6 @@ async function fetchData() {
     renderMainTable();
 }
 
-// 渲染首頁表格
 function renderMainTable() {
     const tbody = document.getElementById('qsoTableBody');
     if (!tbody) return;
@@ -81,27 +88,19 @@ function renderMainTable() {
         let displayNote = r.note || '—';
         let displayTime = r.time || '—';
 
-        // 🔍 智慧判斷區：如果資料庫沒有獨立時間，就去備註裡面撈
         if (r.note) {
-            // 1. 抓取備註裡的時間格式，例如 [15:10]
             const timeMatch = r.note.match(/\[([0-9]{2}:[0-9]{2})\]/);
             if (timeMatch && timeMatch[1]) {
-                // 如果 time 欄位是空的，就借用抓到的時間
                 if (!r.time || r.time === '—') displayTime = timeMatch[1];
-                // 從備註字串中把時間刪掉，保持畫面乾淨
                 displayNote = displayNote.replace(/\[([0-9]{2}:[0-9]{2})\]\s*/, '');
             }
 
-            // 2. 抓取備註裡的衛星名稱，例如 [ARISS]
             const satMatch = r.note.match(/^\[(.*?)\]/);
-            // 避免抓錯（確認括號裡不是時間格式）
             if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
                 displayBand = satMatch[1]; 
                 displayMode = 'SAT';       
                 displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
             }
-            
-            // 清理備註裡多餘的空白或字眼
             displayNote = displayNote.replace('衛星通聯', '').trim() || '—';
         }
 
@@ -110,22 +109,4 @@ function renderMainTable() {
             <td><strong>${escapeHtml(displayTime)}</strong></td>
             <td><strong>${escapeHtml(r.call)}</strong></td>
             <td><strong style="color:#0066cc;">${escapeHtml(displayBand)}</strong></td>
-            <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
-            <td>${recvImg}</td>
-            <td>${sentImg}</td>
-            <td><span class="${st.cls}">${st.text}</span></td>
-            <td>${escapeHtml(displayNote)}</td>
-        </tr>`;
-    }).join('');
-}
-
-// 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    if (!document.getElementById('qsoTableBody')) return;
-
-    const lb = document.getElementById('lightbox');
-    if (lb) lb.addEventListener('click', closeLightbox);
-    document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
-
-    fetchData();
-});
+            <td><span style="font-weight:bold; color
