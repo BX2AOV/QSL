@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BX2AOV QSL confirm</title>
+    <!-- 引入主樣式表 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -39,13 +40,15 @@
                                 <th>收到 QSL</th><th>發出 QSL</th><th>狀態</th><th>備註</th>
                             </tr>
                         </thead>
-                        <tbody id="qsoTableBody"></tbody>
+                        <tbody id="qsoTableBody">
+                            <!-- 由 script.js 動態產生 -->
+                        </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- ================= 分頁 3：管理員 ================= -->
+        <!-- ================= 分頁 2：管理員 ================= -->
         <section class="tab-page" id="page-admin-panel">
             <div class="card">
                 <h2>⚙️ 管理員專區</h2>
@@ -66,6 +69,7 @@
                     </div>
 
                     <div class="admin-upload-grid">
+                        <!-- ADIF 上傳 -->
                         <div>
                             <div class="upload-zone" style="padding:20px;">
                                 <input type="file" id="adifFile" accept=".adi,.adif" style="display:none;">
@@ -75,6 +79,7 @@
                             </div>
                             <button class="btn btn-primary" style="margin-top:12px;" id="btnUploadADIF">上傳並匯入</button>
                         </div>
+                        <!-- 手動新增 -->
                         <div class="manual-form">
                             <input type="text" id="manualDate" placeholder="日期 (YYYY-MM-DD)">
                             <input type="text" id="manualCall" placeholder="呼號 (例如 BM2XXX)">
@@ -91,7 +96,9 @@
                             <thead>
                                 <tr><th>日期</th><th>呼號</th><th>頻段</th><th>模式</th><th>收到 QSL</th><th>發出 QSL</th><th>申請</th><th>操作</th></tr>
                             </thead>
-                            <tbody id="adminManageBody"></tbody>
+                            <tbody id="adminManageBody">
+                                <!-- 由 script.js 動態產生 -->
+                            </tbody>
                         </table>
                     </div>
                     <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
@@ -103,14 +110,16 @@
         </section>
     </div>
 
-    <!-- 燈箱 -->
+    <!-- 燈箱 (點擊圖片放大) -->
     <div class="lightbox" id="lightbox">
         <span class="lightbox-close" id="lightboxClose">×</span>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
+    <!-- 提示訊息 Toast -->
     <div id="toast" class="toast">操作成功</div>
 
+    <!-- 引入主邏輯 script.js -->
     <script src="script.js"></script>
 </body>
 </html>
