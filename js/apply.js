@@ -303,11 +303,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
-            const password = document.getElementById('shipPassword').value.trim(); 
 
             if (!name || !zip || !address) { showToast('請填寫完整收件資訊'); return; }
             if (!isPhoneDisabled && !rawPhone) { showToast('請填寫手機或點擊無需提供'); return; }
-            if (!password || password.length < 8) { showToast('請設定至少 8 位數的查詢密碼'); return; } 
 
             let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
 
@@ -323,8 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     p_ship_phone: finalPhone,
                     p_ship_zip: zip,
                     p_ship_addr: address,
-                    p_ship_note: note,
-                    p_password: password 
+                    p_ship_note: note
                 });
 
                 if (error) { 
@@ -355,7 +352,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('shipZip').value = ''; 
             document.getElementById('shipAddress').value = ''; 
             document.getElementById('shipNote').value = ''; 
-            document.getElementById('shipPassword').value = '';
             shipInfoCard.style.display = 'none';
         });
     }
@@ -383,28 +379,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const rec = recordMap.get(Number(req.record_id)) || {};
             const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
-            
-            // 顯示狀態：已解鎖顯示「已核准/已拒絕」，未解鎖顯示「待處理」+上鎖圖示
-            // 未解鎖時不顯示真實的地址/電話，僅顯示狀態
-            let statusHtml = '';
-            
-            if (req.status === 'approved' || req.status === 'rejected') {
-                // 已有審核結果，顯示狀態
-                statusHtml = `
-                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span class="lock-tag">🔒 已上鎖</span></div>
-                    <div style="font-size:0.8rem; color:#333;">
-                        <strong>狀態：</strong>${txt}
-                    </div>
-                `;
-            } else {
-                // 尚無審核結果，顯示待處理
-                statusHtml = `
-                    <div style="margin-bottom:5px;"><span class="${cls}">${txt}</span> <span class="lock-tag">🔒 已上鎖</span></div>
-                    <div style="font-size:0.8rem; color:#333;">
-                        <strong>狀態：</strong>待處理
-                    </div>
-                `;
-            }
+
+            // 只顯示膠囊狀態（不顯示鎖標籤與狀態文字）
+            const statusHtml = `<span class="${cls}">${txt}</span>`;
 
             return `<tr>
                 <td>${escapeHtml(req.request_date || '—')}</td>
