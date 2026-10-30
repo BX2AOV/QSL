@@ -61,6 +61,14 @@ git push origin main
 > }
 > ```
 
+## 維運
+
+- **列表縮圖**：上傳 QSL 圖片時會自動另存一份 `*_thumb.jpg`（寬 160px），首頁只抓縮圖；
+  舊圖若還沒有縮圖，前端會自動退回原圖。到 `/manage` 登入後按一次「🖼️ 補產生列表縮圖」即可補齊。
+- **流量分析**：`index.html` / `apply.html` 底部已預留 Cloudflare Web Analytics 的 beacon 註解，
+  到 Dashboard → Web Analytics 取得 token 後填入並取消註解即可（CSP 已放行）。
+- **Edge Function**：`clever-responder` 請在 Dashboard 開啟 Enforce JWT Verification。
+
 ## 注意
 
 `風險*.html` 這類本機報告已列入 `.gitignore`，不要 commit——Cloudflare Pages 會把 repo 內容公開。
