@@ -228,6 +228,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 把資料庫回的錯誤代碼轉成看得懂的中文
+    function rpcErrorText(err) {
+        const raw = (err && (err.message || err.hint || err.details)) || '未知錯誤';
+        const map = {
+            RATE_LIMITED: '今日申請筆數已達上限，請明天再試',
+            ALREADY_REQUESTED: '這筆通聯已經申請過了',
+            CALL_MISMATCH: '只能申請自己呼號的通聯',
+            RECORD_NOT_FOUND: '找不到這筆通聯紀錄',
+            INVALID_NAME: '請填寫收件人姓名',
+            INVALID_ADDR: '請填寫收件地址'
+        };
+        return map[raw] || raw;
+    }
+
     function isAlreadyRequested(recordId) {
         return myRequests.some(req => Number(req.record_id) === Number(recordId));
     }
@@ -315,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             btnSubmit.disabled = true; 
             btnSubmit.textContent = '處理中...';
-            let count = 0, hasError = false;
+            let count = 0, hasError = false, firstErr = null;
 
             for (const id of selectedRecordIds) {
                 const { error } = await _supabase.rpc('submit_qsl_request', {
@@ -330,6 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (error) { 
                     hasError = true; 
+                    if (!firstErr) firstErr = error;
                     console.error("提交失敗:", error); 
                 } else { 
                     count++; 
@@ -340,7 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.textContent = '送出 QSL 換卡申請';
             applyLanguage();
             
-            if (count === 0) showToast('❌ 送出失敗，請看 Console 錯誤');
+            if (count === 0) showToast('❌ ' + rpcErrorText(firstErr));
+            else if (hasError) showToast(`⚠️ 已送出 ${count} 筆，部分失敗：${rpcErrorText(firstErr)}`);
             else showToast(`✅ 已送出 ${count} 筆申請`);
 
             selectedRecordIds.clear();
