@@ -1,10 +1,7 @@
 /* ============================================================
    apply.js - 申請頁面專用邏輯 (重構穩定版)
+   資料存取走 api.js 的 SB（不載入 supabase-js）
    ============================================================ */
-
-const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================================================
 // 全域變數 (確保任何地方都讀得到)
@@ -13,6 +10,7 @@ let currentLang = localStorage.getItem('site_lang') || 'zh';
 let queryCallsign = '';
 let matchedRecords = [];
 let myRequests = [];
+let myRequestsError = null;
 let selectedRecordIds = new Set();
 let isPhoneDisabled = false;
 let currentCountryCode = '+886';
@@ -203,8 +201,14 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('user_callsign', queryCallsign);
         queryHint.innerHTML = '<span style="color:#5a6e85;">⏳...</span>';
 
-        const { data, error } = await _supabase.from('qsl_public').select('*').eq('call', call);
-        if (error) { queryHint.innerHTML = `<span style="color:#b03030;">❌ 系統錯誤</span>`; return; }
+        let data;
+        try {
+            data = await SB.select('qsl_public', 'select=*&call=eq.' + encodeURIComponent(call));
+        } catch (error) {
+            console.error('查詢通聯紀錄失敗:', error);
+            queryHint.innerHTML = `<span style="color:#b03030;">❌ 系統錯誤</span>`;
+            return;
+        }
 
         matchedRecords = data || [];
         if (matchedRecords.length === 0) {
@@ -233,20 +237,20 @@ document.addEventListener('DOMContentLoaded', function() {
         shipInfoCard.style.display = 'none';
     }
 
-    // 🌟 抓取我的申請紀錄 (強制不傳密碼，取得全部上鎖資料)
+    // 🌟 抓取我的申請紀錄
     async function loadMyRequests() {
         if (!queryCallsign) { myRequests = []; return; }
-        
-        const { data, error } = await _supabase.rpc('my_qsl_requests', { 
-            p_user_call: queryCallsign,
-            p_password: '' 
-        });
-        
-        if (error) {
+
+        try {
+            myRequests = (await SB.rpc('my_qsl_requests', {
+                p_user_call: queryCallsign,
+                p_password: ''
+            })) || [];
+            myRequestsError = null;
+        } catch (error) {
             console.error("❌ 載入申請紀錄失敗:", error);
             myRequests = [];
-        } else {
-            myRequests = data || [];
+            myRequestsError = error;
         }
     }
 
@@ -354,22 +358,21 @@ document.addEventListener('DOMContentLoaded', function() {
             let count = 0, hasError = false, firstErr = null;
 
             for (const id of selectedRecordIds) {
-                const { error } = await _supabase.rpc('submit_qsl_request', {
-                    p_record_id: Number(id),
-                    p_user_call: queryCallsign,
-                    p_ship_name: name,
-                    p_ship_phone: finalPhone,
-                    p_ship_zip: zip,
-                    p_ship_addr: address,
-                    p_ship_note: note
-                });
-
-                if (error) { 
-                    hasError = true; 
+                try {
+                    await SB.rpc('submit_qsl_request', {
+                        p_record_id: Number(id),
+                        p_user_call: queryCallsign,
+                        p_ship_name: name,
+                        p_ship_phone: finalPhone,
+                        p_ship_zip: zip,
+                        p_ship_addr: address,
+                        p_ship_note: note
+                    });
+                    count++;
+                } catch (error) {
+                    hasError = true;
                     if (!firstErr) firstErr = error;
-                    console.error("提交失敗:", error); 
-                } else { 
-                    count++; 
+                    console.error("提交失敗:", error);
                 }
             }
 
@@ -406,6 +409,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!queryCallsign) { 
             tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">請先查詢您的呼號</div></td></tr>`; 
             return; 
+        }
+        if (myRequestsError) {
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="color:#b03030;">申請紀錄載入失敗，請稍後重新整理</div></td></tr>`;
+            return;
         }
         if (myRequests.length === 0) { 
             tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>`; 

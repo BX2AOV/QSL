@@ -1,10 +1,7 @@
 /* ============================================================
    script.js - 首頁（總覽）專用邏輯 (包含搜尋與多語系分頁)
+   資料存取走 api.js 的 SB（不載入 supabase-js）
    ============================================================ */
-
-const SUPABASE_URL = 'https://btcsstbtbnejuyexwbpn.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NzdGJ0Ym5lanV5ZXh3YnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzAzNDQsImV4cCI6MjEwODgwNjM0NH0.fDV1XxtEbCiTBn1Q8tAx_ljqsBGA_O-kc8SZ6flea44';
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let qslRecords = [];
 let filteredRecords = []; 
@@ -137,16 +134,15 @@ async function fetchData() {
     // 任何人只要狂刷首頁就能無限觸發。已移到管理後台登入後才執行。
 
     // H-1 修復：改讀公開視圖，requests 欄位根本不下發
-    const { data, error } = await _supabase
-        .from('qsl_public')
-        .select('id, date, time, call, band, mode, note, receivedImg, sentImg, status, has_requests')
-        .order('date', { ascending: false })
-        .order('time', { ascending: false });
-
-    if (error) { 
+    const fields = 'id,date,time,call,band,mode,note,receivedImg,sentImg,status,has_requests';
+    let data = null;
+    try {
+        data = await SB.select('qsl_public', 'select=' + fields + '&order=date.desc,time.desc');
+    } catch (error) {
         const errText = { zh: '資料載入失敗', cn: '数据载入失败', en: 'Data load failed', ja: 'データの読み込みに失敗しました' };
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${errText[currentLang]}</div></td></tr>`;
-        return; 
+        console.error('載入通聯紀錄失敗:', error);
+        return;
     }
 
     // qsl_public 已不含 requests，不需再補空陣列
