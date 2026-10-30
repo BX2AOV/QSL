@@ -235,6 +235,11 @@ function renderMainTable() {
     }).join('');
 
     updatePagination(recordsToShow.length, totalPages);
+
+    const status = document.getElementById('resultStatus');
+    if (status) {
+        status.textContent = `共 ${recordsToShow.length} 筆通聯紀錄，第 ${currentPage} 頁，共 ${totalPages} 頁`;
+    }
 }
 
 // 🌟 動態生成多語系分頁按鈕
@@ -343,6 +348,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeLightbox();
+        // 燈箱開啟時把焦點鎖在關閉鈕（只有一個可聚焦元素）
+        const lbEl = document.getElementById('lightbox');
+        if (e.key === 'Tab' && lbEl && lbEl.classList.contains('show')) {
+            e.preventDefault();
+            document.getElementById('lightboxClose')?.focus();
+        }
     });
 
     // 鍵盤操作：縮圖以 Enter / Space 開啟燈箱

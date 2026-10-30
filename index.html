@@ -7,6 +7,7 @@
     <meta name="description" content="BX2AOV 的業餘無線電通聯紀錄查詢，支援呼號搜尋、QSL 卡片圖片檢視與換卡申請狀態追蹤。表格時間為 UTC。">
     <meta name="author" content="BX2AOV">
     <meta name="theme-color" content="#0b2a4a">
+    <meta name="color-scheme" content="light dark">
     <meta name="format-detection" content="telephone=no">
     <link rel="canonical" href="https://qsl-web.pages.dev/">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -23,8 +24,8 @@
     <meta property="og:image" content="https://btcsstbtbnejuyexwbpn.supabase.co/storage/v1/object/public/qsl-images/1793273956318_21_sent.jpg">
     <meta name="twitter:card" content="summary_large_image">
 
-    <link rel="stylesheet" href="css/style.css?v=20261031b">
-    <script src="js/api.js?v=20261031b" defer></script>
+    <link rel="stylesheet" href="css/style.css?v=20261031c">
+    <script src="js/api.js?v=20261031c" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">跳到主要內容</a>
@@ -89,6 +90,8 @@
                     </tbody>
                 </table>
             </div>
+
+            <p class="sr-only" role="status" aria-live="polite" id="resultStatus"></p>
         </section>
     </div>
 
@@ -99,6 +102,10 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite">操作成功</div>
 
-    <script src="js/script.js?v=20261031b" defer></script>
+    <!-- Cloudflare Web Analytics：到 Dashboard 取得 token 後，把下面兩行的註解拿掉並填入 token
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon='{"token": "在這裡貼上你的 token"}'></script>
+    -->
+    <script src="js/script.js?v=20261031c" defer></script>
 </body>
 </html>

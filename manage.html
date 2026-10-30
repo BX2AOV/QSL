@@ -6,11 +6,12 @@
     <title>管理員後台 — BX2AOV QSL confirm</title>
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0b2a4a">
+    <meta name="color-scheme" content="light dark">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://btcsstbtbnejuyexwbpn.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://btcsstbtbnejuyexwbpn.supabase.co">
-    <link rel="stylesheet" href="css/style.css?v=20261031b">
-    <script src="vendor/supabase-js.min.js?v=20261031b" defer></script>
+    <link rel="stylesheet" href="css/style.css?v=20261031c">
+    <script src="vendor/supabase-js.min.js?v=20261031c" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">跳到主要內容</a>
@@ -51,18 +52,18 @@
 
             <!-- 監測面板 -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                <div style="background: #f8fbfe; border: 1px solid #dbe7f3; border-radius: 16px; padding: 16px;">
-                    <div style="font-size: 0.85rem; color: #5a6e85; margin-bottom: 6px;">📊 資料庫文字 (上限 500 MB)</div>
-                    <div style="background: #e0e9f2; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
+                <div class="stat-panel">
+                    <div class="muted-label" style="font-size: 0.85rem; margin-bottom: 6px;">📊 資料庫文字 (上限 500 MB)</div>
+                    <div class="stat-track">
                         <div id="dbUsageBar" style="background: #0b2a4a; height: 100%; width: 0%; transition: width 0.5s;"></div>
                     </div>
-                    <div id="dbUsageText" style="font-size: 0.8rem; color: #1a3a5c; font-weight: bold; margin-bottom: 12px;">計算中...</div>
+                    <div id="dbUsageText" class="stat-text" style="font-size: 0.8rem; margin-bottom: 12px;">計算中...</div>
 
-                    <div style="font-size: 0.85rem; color: #5a6e85; margin-bottom: 6px;">🖼️ 圖片空間 (上限 1000 MB)</div>
-                    <div style="background: #e0e9f2; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
+                    <div class="muted-label" style="font-size: 0.85rem; margin-bottom: 6px;">🖼️ 圖片空間 (上限 1000 MB)</div>
+                    <div class="stat-track">
                         <div id="storageUsageBar" style="background: #0066cc; height: 100%; width: 0%; transition: width 0.5s;"></div>
                     </div>
-                    <div id="storageUsageText" style="font-size: 0.8rem; color: #1a3a5c; font-weight: bold;">計算中...</div>
+                    <div id="storageUsageText" class="stat-text" style="font-size: 0.8rem;">計算中...</div>
                 </div>
             </div>
 
@@ -167,6 +168,6 @@
     </div>
 
     <div id="toast" class="toast">操作成功</div>
-    <script src="js/manage.js?v=20261031b" defer></script>
+    <script src="js/manage.js?v=20261031c" defer></script>
 </body>
 </html>

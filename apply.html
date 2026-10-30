@@ -7,6 +7,7 @@
     <meta name="description" content="用呼號查詢你的通聯紀錄，線上送出 QSL 換卡申請並追蹤處理狀態。資料即時同步，免註冊。">
     <meta name="author" content="BX2AOV">
     <meta name="theme-color" content="#0b2a4a">
+    <meta name="color-scheme" content="light dark">
     <meta name="format-detection" content="telephone=no">
     <link rel="canonical" href="https://qsl-web.pages.dev/apply">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -23,9 +24,9 @@
     <meta property="og:image" content="https://btcsstbtbnejuyexwbpn.supabase.co/storage/v1/object/public/qsl-images/1793273956318_21_sent.jpg">
     <meta name="twitter:card" content="summary_large_image">
 
-    <link rel="stylesheet" href="css/style.css?v=20261031b">
-    <link rel="stylesheet" href="css/apply.css?v=20261031b">
-    <script src="js/api.js?v=20261031b" defer></script>
+    <link rel="stylesheet" href="css/style.css?v=20261031c">
+    <link rel="stylesheet" href="css/apply.css?v=20261031c">
+    <script src="js/api.js?v=20261031c" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">跳到主要內容</a>
@@ -65,7 +66,7 @@
                 <input type="text" id="queryCallsignInput" placeholder="請輸入呼號 (例: BV2AAA)" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="15" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #cbdae8; text-transform: uppercase; min-width: 0;">
                 <button id="btnQuery" class="btn-primary" style="padding: 0 24px; border-radius: 8px; border: none; background: #0b2a4a; color: #fff; font-weight: bold; cursor: pointer; height: 46px; white-space: nowrap;" data-zh="查詢通聯紀錄" data-cn="查询通联记录" data-en="Search" data-ja="検索">查詢通聯紀錄</button>
             </div>
-            <div id="queryResultHint" style="margin-top: 10px; font-weight: bold;"></div>
+            <div id="queryResultHint" style="margin-top: 10px; font-weight: bold;" role="status" aria-live="polite"></div>
         </section>
 
         <!-- 查詢結果表格 -->
@@ -182,6 +183,10 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite">操作成功</div>
 
-    <script src="js/apply.js?v=20261031b" defer></script>
+    <!-- Cloudflare Web Analytics：到 Dashboard 取得 token 後，把下面兩行的註解拿掉並填入 token
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon='{"token": "在這裡貼上你的 token"}'></script>
+    -->
+    <script src="js/apply.js?v=20261031c" defer></script>
 </body>
 </html>

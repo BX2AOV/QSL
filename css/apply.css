@@ -78,3 +78,19 @@
         word-break: break-word;
     }
 }
+
+/* ===== 5. 深色模式 ===== */
+@media (prefers-color-scheme: dark) {
+    .ship-grid input,
+    .ship-grid select {
+        background: #141d2f !important;
+        color: #d7e3f4 !important;
+        border-color: #2f405c !important;
+    }
+
+    #btnNoPhone {
+        background: #1e2b42 !important;
+        color: #cfe0f2 !important;
+        border-color: #3a4a66 !important;
+    }
+}
