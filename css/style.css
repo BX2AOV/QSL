@@ -240,6 +240,33 @@ tr:hover td { background: #fafdff; }
 .muted-label { color: #5a6e85; }
 .stat-text { color: #1a3a5c; font-weight: bold; }
 
+/* ===== 後台表格：狀態選單與操作按鈕 ===== */
+.status-select-change {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbdae8;
+    font-size: 0.8rem;
+    background: #fff;
+    color: #1f3a5f;
+    cursor: pointer;
+    outline: none;
+    max-width: 11em;
+}
+.btn-del-img { background: #fde8e8; color: #b03030; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; margin-left: 4px; }
+.btn-delete-record { background: #0b2a4a; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap; }
+.btn-delete-req { background: #fde8e8; color: #b03030; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; white-space: nowrap; }
+.btn-approve-req { background: #d9f0e0; color: #0e6b3e; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.btn-reject-req { background: #fff0d9; color: #b45f06; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+
+.req-card { margin-bottom: 10px; padding: 10px; background: #f8fbfe; border: 1px solid #e0e9f2; border-radius: 8px; position: relative; }
+.req-call { color: #7b3fa0; font-size: 0.95rem; }
+.req-detail { font-size: 0.85rem; color: #333; margin-bottom: 8px; line-height: 1.4; }
+.req-empty { color: #a0b2c6; font-size: 0.85rem; }
+
+.reminder-chip { font-size: 0.7rem; margin-top: 4px; }
+.warn-chip { color: #b45f06; background: #fff0d9; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.ok-chip { color: #0e6b3e; }
+
 /* ===== 主題切換按鈕 ===== */
 .theme-toggle {
     width: 38px;
@@ -339,6 +366,22 @@ html[data-theme="dark"] .badge-requested,
 html[data-theme="dark"] .status-badge.applied { background: rgba(167,139,250,.18); color: #c4b5fd; }
 html[data-theme="dark"] .badge-rejected { background: rgba(248,113,113,.16); color: #f87171; }
 html[data-theme="dark"] .badge-completed-dark { background: #17603c; color: #fff; }
+
+/* 後台表格元件 */
+html[data-theme="dark"] .status-select-change { background: #182238 !important; color: #d7e3f4 !important; border-color: #2f405c !important; }
+html[data-theme="dark"] .upload-btns label { background: #1e2b42; border-color: #3a4a66; color: #c2d3e6; }
+html[data-theme="dark"] .upload-btns label:hover { background: #26364f; border-color: #5b7ba6; }
+html[data-theme="dark"] .btn-del-img,
+html[data-theme="dark"] .btn-delete-req { background: rgba(248,113,113,.16); color: #f87171; }
+html[data-theme="dark"] .btn-delete-record { background: #1e5fa8; color: #fff; }
+html[data-theme="dark"] .btn-approve-req { background: rgba(52,211,153,.16); color: #34d399; }
+html[data-theme="dark"] .btn-reject-req { background: rgba(251,191,36,.16); color: #fbbf24; }
+html[data-theme="dark"] .req-card { background: #182238; border-color: #24314a; }
+html[data-theme="dark"] .req-call { color: #c4b5fd; }
+html[data-theme="dark"] .req-detail { color: #cfdceb; }
+html[data-theme="dark"] .req-empty { color: #7f92a8; }
+html[data-theme="dark"] .warn-chip { background: rgba(251,191,36,.16); color: #fbbf24; }
+html[data-theme="dark"] .ok-chip { color: #34d399; }
 
 /* ===== 列印（管理頁印地址用） ===== */
 @media print {

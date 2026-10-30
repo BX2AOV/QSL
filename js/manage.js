@@ -258,7 +258,7 @@ async function renderAdminTable() {
     manageTableBody.innerHTML = paginatedRecords.map(r => {
         const display = getDisplayInfo(r); 
 
-        let reqHtml = '<div style="color:#a0b2c6; font-size:0.85rem;">尚無申請</div>';
+        let reqHtml = '<div class="req-empty">尚無申請</div>';
         if (r.requests && r.requests.length > 0) {
             reqHtml = r.requests.map((req, idx) => {
                 let statusHtml = '';
@@ -267,69 +267,66 @@ async function renderAdminTable() {
                 else if (req.status === 'rejected') statusHtml = '<span class="badge-rejected" style="margin-left:4px;">已拒絕</span>';
 
                 return `
-                <div style="margin-bottom: 10px; padding: 10px; background: #f8fbfe; border-radius: 8px; border: 1px solid #e0e9f2; position: relative;">
+                <div class="req-card">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                        <div><strong style="color:#7b3fa0; font-size:0.95rem;">👤 ${escapeHtml(req.userCall)}</strong>${statusHtml}</div>
-                        <button class="btn-delete-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#fde8e8; color:#b03030; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">刪除申請</button>
+                        <div><strong class="req-call">👤 ${escapeHtml(req.userCall)}</strong>${statusHtml}</div>
+                        <button class="btn-delete-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}">刪除申請</button>
                     </div>
-                    <div style="font-size:0.85rem; color:#333; margin-bottom:8px; line-height:1.4;">
+                    <div class="req-detail">
                         <strong>收件人：</strong>${escapeHtml(req.shipName)}<br>
                         <strong>手機：</strong>${escapeHtml(req.shipPhone)}<br>
                         <strong>地址：</strong>${escapeHtml(req.shipZip)} ${escapeHtml(req.shipAddress)}
                     </div>
                     <div style="display:flex; gap:6px;">
-                        <button class="btn-approve-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#d9f0e0; color:#0e6b3e; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">核准申請</button>
-                        <button class="btn-reject-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}" style="background:#fff0d9; color:#b45f06; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">拒絕申請</button>
+                        <button class="btn-approve-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}">核准申請</button>
+                        <button class="btn-reject-req" data-id="${escAttr(r.id)}" data-idx="${escAttr(idx)}">拒絕申請</button>
                     </div>
                 </div>`;
             }).join('');
         }
 
-        // C-2 修復：圖片使用 escAttr，移除 onclick
-        const recvImgHtml = r.receivedImg ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb">` : '';
-        const recvBtnHtml = r.receivedImg ? `<button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="received" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
-
-        const sentImgHtml = r.sentImg ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb">` : '';
-        const sentBtnHtml = r.sentImg ? `<button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="sent" style="background:#fde8e8; color:#b03030; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:0.75rem; margin-left:4px;">刪除</button>` : '';
+        // 有圖片就只顯示圖片 + 刪除；沒有圖片才顯示上傳按鈕
+        const recvHtml = r.receivedImg
+            ? `<div class="upload-btns" style="margin-bottom:4px;">
+                    <img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy">
+                    <button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="received">刪除</button>
+               </div>`
+            : `<div class="upload-btns" style="margin-bottom:4px;">
+                    <label for="recv-${escAttr(r.id)}">📥 收到</label>
+                    <input type="file" id="recv-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="received" accept="image/*">
+               </div>`;
         
         let sentReminderHtml = '';
         if (r.sentImg && r.sentDate) {
             const days = getDaysSince(r.sentDate);
             if (days >= 30) {
-                sentReminderHtml = `<div style="font-size:0.7rem; color:#b45f06; background:#fff0d9; padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">⏰ 已寄出 ${days} 天</div>`;
+                sentReminderHtml = `<div class="reminder-chip warn-chip">⏰ 已寄出 ${days} 天</div>`;
             }
         }
         if (r.status === 'completed' && r.completedDate) {
             const daysSinceComplete = getDaysSince(r.completedDate);
             const daysLeft = 30 - daysSinceComplete;
             if (daysLeft > 0) {
-                sentReminderHtml += `<div style="font-size:0.7rem; color:#0e6b3e; margin-top:4px;">✅ ${daysLeft} 天後清理</div>`;
+                sentReminderHtml += `<div class="reminder-chip ok-chip">✅ ${daysLeft} 天後清理</div>`;
             }
         }
 
-        // 移除 onchange，改用 data 屬性識別
-        const recvHtml = `
-            <div class="upload-btns" style="margin-bottom:4px;">
-                <label for="recv-${escAttr(r.id)}">📥 收到</label>
-                <input type="file" id="recv-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="received" accept="image/*">
-                ${recvImgHtml}
-                ${recvBtnHtml}
-            </div>`;
-
-        const sentHtml = `
-            <div class="upload-btns">
-                <label for="sent-${escAttr(r.id)}">📤 發出</label>
-                <input type="file" id="sent-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="sent" accept="image/*">
-                ${sentImgHtml}
-                ${sentBtnHtml}
-            </div>
-            ${sentReminderHtml}`;
+        const sentHtml = r.sentImg
+            ? `<div class="upload-btns">
+                    <img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy">
+                    <button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="sent">刪除</button>
+               </div>
+               ${sentReminderHtml}`
+            : `<div class="upload-btns">
+                    <label for="sent-${escAttr(r.id)}">📤 發出</label>
+                    <input type="file" id="sent-${escAttr(r.id)}" class="file-upload-input" data-id="${escAttr(r.id)}" data-type="sent" accept="image/*">
+               </div>`;
 
         const currentStatus = r.status || 'none';
         
         // 移除 onchange，改用 data 屬性
         const statusSelect = `
-            <select class="status-select-change" data-id="${escAttr(r.id)}" style="padding:6px 8px; border-radius:6px; border:1px solid #cbdae8; font-size:0.8rem; background:#fff; cursor:pointer; outline:none;">
+            <select class="status-select-change" data-id="${escAttr(r.id)}" aria-label="QSL 狀態">
                 <option value="none" ${currentStatus === 'none' ? 'selected' : ''}>未申請</option>
                 <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>待處理</option>
                 <option value="received_paper" ${currentStatus === 'received_paper' ? 'selected' : ''}>已收到紙卡</option>
@@ -350,7 +347,7 @@ async function renderAdminTable() {
             <td>${recvHtml}${sentHtml}</td>
             <td>${statusSelect}</td>
             <td>
-                <button class="btn-delete-record" data-id="${escAttr(r.id)}" style="background:#0b2a4a; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75rem; white-space:nowrap;">🗑️</button>
+                <button class="btn-delete-record" data-id="${escAttr(r.id)}" aria-label="刪除這筆紀錄">🗑️</button>
             </td>
         </tr>`;
     }).join('');
