@@ -247,7 +247,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (r.note) {
                 const satMatch = r.note.match(/^\[(.*?)\]/);
-                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) displayBand = satMatch[1]; 
+                if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
+                    displayBand = satMatch[1];
+                    // 備註只保留「衛星通聯」，不顯示衛星名稱
+                    displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
+                }
                 else { const freqMatch = r.note.match(/FREQ:([\d.]+)/); if (freqMatch && freqMatch[1]) displayBand = freqMatch[1]; }
                 const satText = { zh: '衛星通聯', cn: '卫星通联', en: 'SAT QSO', ja: '衛星通信' };
                 displayNote = displayNote.replace('衛星通聯', satText[currentLang]).trim();
