@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return `<tr>
                 <td>${escapeHtml(req.request_date || '—')}</td>
                 <td><strong>${escapeHtml(rec.call || '—')}</strong></td>
-                <td>${escapeHtml(req.date || '—')}</td>
+                <td>${escapeHtml(req.record_date || req.date || '—')}</td>
                 <td>${escapeHtml(rec.band || '—')} / ${escapeHtml(rec.mode || '—')}</td>
                 <td>${statusHtml}</td>
             </tr>`;
