@@ -51,6 +51,16 @@ supabase/                               資料庫修復與加固 SQL（僅供手
 git push origin main
 ```
 
+> **改了 CSS / JS 之後**：把三個 HTML 裡 `?v=` 的版本號一起換掉（例如改成當下的 commit 短碼），
+> 否則瀏覽器會照 `Cache-Control` 繼續用舊檔最多一小時。
+> ```bash
+> # 一次換掉全部（Windows PowerShell）
+> Get-ChildItem *.html | ForEach-Object {
+>   (Get-Content $_.FullName -Raw -Encoding UTF8) -replace '\?v=[0-9a-f]+', '?v=新版本號' |
+>     Set-Content $_.FullName -Encoding UTF8 -NoNewline
+> }
+> ```
+
 ## 注意
 
 `風險*.html` 這類本機報告已列入 `.gitignore`，不要 commit——Cloudflare Pages 會把 repo 內容公開。
