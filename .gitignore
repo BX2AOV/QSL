@@ -3,6 +3,10 @@
 風險報告*.html
 風險評估*.html
 
+# 通聯紀錄匯出檔含個資，不要 commit
+*.adi
+*.adif
+
 # 編輯器 / 系統檔
 .DS_Store
 Thumbs.db
