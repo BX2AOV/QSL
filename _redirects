@@ -2,3 +2,7 @@
 # 包含 supabase/ 底下的 SQL 與 Edge Function 原始碼。
 # 這些不該被公開：一律 302 導回首頁，避免原始內容被讀取。
 /supabase/* / 302
+
+# CI 腳本與 GitHub 設定不需要被公開
+/scripts/* / 302
+/.github/* / 302

@@ -1,0 +1,27 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JavaScript 語法檢查
+        run: |
+          set -e
+          for f in js/*.js; do
+            echo "checking $f"
+            node --check "$f"
+          done
+
+      - name: 頁面結構與連結檢查
+        run: node scripts/check-site.js

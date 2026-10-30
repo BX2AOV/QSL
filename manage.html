@@ -10,8 +10,9 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://btcsstbtbnejuyexwbpn.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://btcsstbtbnejuyexwbpn.supabase.co">
-    <link rel="stylesheet" href="css/style.css?v=20261031e">
-    <script src="vendor/supabase-js.min.js?v=20261031e" defer></script>
+    <script src="js/theme.js?v=20261031f"></script>
+    <link rel="stylesheet" href="css/style.css?v=20261031f">
+    <script src="vendor/supabase-js.min.js?v=20261031f" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">跳到主要內容</a>
@@ -27,8 +28,11 @@
                 <li><a href="apply.html" class="nav-tab">我的申請</a></li>
                 <li><a href="manage.html" class="nav-tab active">管理員</a></li>
             </ul>
-            <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
-                <span class="role-badge" id="roleBadge">未登入</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" id="themeToggle" class="theme-toggle" aria-label="主題">🌗</button>
+                <div id="loginStatus" style="font-size:0.9rem; color:#2b4056;">
+                    <span class="role-badge" id="roleBadge">未登入</span>
+                </div>
             </div>
         </header>
 
@@ -48,7 +52,10 @@
         <section class="card" id="adminPanel" style="display:none;">
             <div class="flex-between" style="margin-bottom:16px;">
                 <h2>⚙️ 管理後台</h2>
-                <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-outline btn-sm" id="btnPrint">🖨️ 列印</button>
+                    <button class="btn btn-outline btn-sm" id="btnLogout">登出</button>
+                </div>
             </div>
 
             <!-- 監測面板 -->
@@ -170,6 +177,6 @@
     </div>
 
     <div id="toast" class="toast">操作成功</div>
-    <script src="js/manage.js?v=20261031e" defer></script>
+    <script src="js/manage.js?v=20261031f" defer></script>
 </body>
 </html>

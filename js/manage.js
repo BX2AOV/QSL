@@ -875,6 +875,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     btnLogin?.addEventListener('click', login);
     btnLogout?.addEventListener('click', logout);
+    document.getElementById('btnPrint')?.addEventListener('click', function () { window.print(); });
     document.getElementById('adminPassword')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
     
     document.getElementById('adifFile')?.addEventListener('change', handleAdifSelect);
