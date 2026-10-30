@@ -40,6 +40,12 @@ function escapeHtml(text) {
     return div.innerHTML; 
 }
 
+// 列表用縮圖（上傳時會另存 *_thumb.jpg）
+function thumbOf(url) {
+    if (!url) return '';
+    return /\.(jpe?g|png)$/i.test(url) ? url.replace(/\.(jpe?g|png)$/i, '_thumb.jpg') : url;
+}
+
 // 屬性上下文轉義 (C-2 修復核心)
 function escAttr(text) {
     if (text === null || text === undefined) return '';
@@ -288,7 +294,7 @@ async function renderAdminTable() {
         // 有圖片就只顯示圖片 + 刪除；沒有圖片才顯示上傳按鈕
         const recvHtml = r.receivedImg
             ? `<div class="upload-btns" style="margin-bottom:4px;">
-                    <img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy">
+                    <img src="${escAttr(thumbOf(r.receivedImg))}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy">
                     <button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="received">刪除</button>
                </div>`
             : `<div class="upload-btns" style="margin-bottom:4px;">
@@ -313,7 +319,7 @@ async function renderAdminTable() {
 
         const sentHtml = r.sentImg
             ? `<div class="upload-btns">
-                    <img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy">
+                    <img src="${escAttr(thumbOf(r.sentImg))}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy">
                     <button class="btn-del-img" data-id="${escAttr(r.id)}" data-type="sent">刪除</button>
                </div>
                ${sentReminderHtml}`
@@ -958,6 +964,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
     });
+
+    // 縮圖載入失敗（舊圖沒有 _thumb）就退回原圖
+    manageTableBody?.addEventListener('error', (e) => {
+        const img = e.target;
+        if (!img || img.tagName !== 'IMG' || img.dataset.thumbFallback === '1') return;
+        const full = img.dataset.src;
+        if (full && img.getAttribute('src') !== full) {
+            img.dataset.thumbFallback = '1';
+            img.src = full;
+        }
+    }, true);
 
     // 處理下拉選單改變
     manageTableBody?.addEventListener('change', (e) => {
