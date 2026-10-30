@@ -45,7 +45,9 @@ commit;
 
 -- ------------------------------------------------------------
 -- 第 3 段：確認 admins 表真的沒在用（唯讀）
--- 預期：value 欄位是 0 或很小的數字；前端程式碼完全沒引用這張表
+-- 預期：第一列是筆數；第二個查詢沒有回傳任何列就代表沒有函式引用它
+-- 註：這裡用 prosrc（純文字欄位）比 pg_get_functiondef() 安全，
+--     後者遇到聚合函式會直接報 42809。
 -- ------------------------------------------------------------
 select count(*) as 管理員表筆數 from public.admins;
 
@@ -53,7 +55,8 @@ select p.proname as 有引用到的函式
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
-  and pg_get_functiondef(p.oid) ilike '%admins%';
+  and p.prokind = 'f'
+  and p.prosrc ilike '%admins%';
 
 
 -- ------------------------------------------------------------
