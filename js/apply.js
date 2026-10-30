@@ -366,11 +366,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tbody) return;
 
         if (!queryCallsign) { 
-            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">請先查詢您的呼號</div></td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">請先查詢您的呼號</div></td></tr>`; 
             return; 
         }
         if (myRequests.length === 0) { 
-            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">尚無申請紀錄</div></td></tr>`; 
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">尚無申請紀錄</div></td></tr>`; 
             return; 
         }
 
@@ -382,7 +382,6 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (req.status === 'rejected') { cls = 'badge-rejected'; txt = '已拒絕'; }
 
             const rec = recordMap.get(Number(req.record_id)) || {};
-            const shipInfo = req.ship_name ? `${escapeHtml(req.ship_name)}` : '—';
 
             // 只顯示膠囊狀態（不顯示鎖標籤與狀態文字）
             const statusHtml = `<span class="${cls}">${txt}</span>`;
@@ -392,7 +391,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td><strong>${escapeHtml(rec.call || '—')}</strong></td>
                 <td>${escapeHtml(req.date || '—')}</td>
                 <td>${escapeHtml(rec.band || '—')} / ${escapeHtml(rec.mode || '—')}</td>
-                <td>${shipInfo}</td>
                 <td>${statusHtml}</td>
             </tr>`;
         }).join('');
