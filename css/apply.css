@@ -1,32 +1,18 @@
-/* ===== 1. 查詢呼號區塊 ===== */
-.user-callsign-area {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-    background: #f8fbfe;
-    padding: 16px 20px;
-    border-radius: 20px;
-    border: 1px solid #dbe7f3;
-}
+/* ============================================================
+   apply.css — 只保留 /apply 頁面實際使用的樣式
+   （舊版有大量 .ship-form / .form-row / .custom-select-* /
+     .row-group / .address-hint 等選擇器，HTML 早已不用，已移除）
+   ============================================================ */
 
+/* ===== 1. 呼號查詢輸入框 ===== */
 #queryCallsignInput {
-    flex: 1 1 200px;
-    padding: 14px 20px;
-    border-radius: 12px;
-    border: 1.5px solid #cbdae8;
-    font-size: 1rem;
-    color: #2b4056;
-    background-color: #ffffff;
-    outline: none;
-    transition: all 0.25s ease;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
-    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 #queryCallsignInput:focus {
     border-color: #0066cc;
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+    outline: none;
 }
 
 #queryCallsignInput::placeholder {
@@ -34,184 +20,61 @@
     font-weight: 400;
 }
 
-/* ===== 2. 收件資訊表單 ===== */
-.ship-form {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    max-width: 100%;
+/* ===== 2. 收件資訊表單排版 ===== */
+.ship-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
 }
 
-.form-row {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.ship-grid .span-2 {
+    grid-column: span 2;
 }
 
-.form-row label {
+.ship-grid label {
+    display: inline-block;
+    margin-bottom: 6px;
     font-size: 0.95rem;
     font-weight: 600;
     color: #1a3a5c;
-    letter-spacing: 0.5px;
 }
 
-.form-row label .required {
-    color: #e53e3e;
-    margin-left: 2px;
+.ship-grid input,
+.ship-grid select {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.ship-form .form-row input[type="text"],
-.ship-form .form-row input[type="tel"] {
-    width: 100%;
-    padding: 14px 20px;
-    border-radius: 12px;
-    border: 1.5px solid #cbdae8;
-    font-size: 1rem;
-    color: #2b4056;
-    background-color: #f8fbfe;
-    outline: none;
-    transition: all 0.25s ease;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
-    font-family: inherit;
-    box-sizing: border-box;
-}
-
-.ship-form .form-row input[type="text"]:focus,
-.ship-form .form-row input[type="tel"]:focus {
-    border-color: #0066cc;
-    background-color: #ffffff;
+.ship-grid input:focus,
+.ship-grid select:focus {
+    border-color: #0066cc !important;
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.15);
+    outline: none;
 }
 
-.ship-form .form-row input::placeholder {
-    color: #a0b2c6;
-    font-weight: 400;
-}
+/* ===== 3. 手機版 ===== */
+@media (max-width: 640px) {
+    .ship-grid {
+        grid-template-columns: 1fr;
+    }
 
-/* ===== 地址提示文字 ===== */
-.address-hint {
-    font-size: 0.8rem;
-    color: #0066cc;
-    margin-bottom: 4px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* ===== 自訂下拉選單 (國碼) ===== */
-.custom-select-wrapper {
-    position: relative;
-    width: 110px;
-}
-
-.custom-select-trigger {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1.5px solid #cbdae8;
-    background: #f8fbfe;
-    font-size: 1rem;
-    color: #2b4056;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.custom-select-trigger:hover {
-    border-color: #0066cc;
-}
-
-.custom-select-trigger .arrow {
-    font-size: 0.7rem;
-    color: #7e96af;
-    transition: transform 0.3s;
-}
-
-.custom-select-wrapper.open .arrow {
-    transform: rotate(180deg);
-}
-
-.custom-options {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    width: 100%;
-    max-height: 200px;
-    overflow-y: auto;
-    background: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #cbdae8;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-    z-index: 100;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.2s ease;
-}
-
-.custom-select-wrapper.open .custom-options {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.custom-option {
-    padding: 12px;
-    font-size: 0.95rem;
-    color: #2b4056;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.custom-option:hover {
-    background: #eef6ff;
-    color: #0066cc;
-}
-
-/* ===== 3. 排版優化 (並排與響應式) ===== */
-.row-group {
-    display: flex;
-    gap: 16px;
-}
-
-.row-group .form-row {
-    flex: 1;
-}
-
-@media (min-width: 600px) {
-    #shipPhone, #shipZip {
-        max-width: 250px;
+    .ship-grid .span-2 {
+        grid-column: auto;
     }
 }
 
-@media (max-width: 500px) {
-    .row-group {
-        flex-direction: column;
-        gap: 18px;
-    }
-    .user-callsign-area .btn {
-        width: 100%;
-    }
-    /* 手機版讓國碼選單不會太擠 */
-    .custom-select-wrapper {
-        width: 90px;
-    }
-}
-
-/* ===== 手機版表格優化 ===== */
+/* ===== 4. 手機版表格（欄位多，縮小內距） ===== */
 @media (max-width: 600px) {
-    #queryResultCard th, 
+    #queryResultCard th,
     #queryResultCard td,
     #myRequestsBody th,
     #myRequestsBody td {
         padding: 10px 8px;
         font-size: 0.8rem;
     }
+
     #queryResultCard td:last-child {
         white-space: normal;
-        word-break: break-all;
+        word-break: break-word;
     }
 }

@@ -46,7 +46,15 @@ function applyLanguage() {
         btnNoPhone.textContent = noPhoneText[currentLang];
     }
     const toggle = document.getElementById('langToggle');
-    if (toggle) toggle.setAttribute('data-active', currentLang);
+    if (toggle) {
+        toggle.setAttribute('data-active', currentLang);
+        toggle.querySelectorAll('.lang-option').forEach(opt => {
+            const isActive = opt.dataset.lang === currentLang;
+            opt.setAttribute('role', 'radio');
+            opt.setAttribute('aria-checked', isActive ? 'true' : 'false');
+            opt.tabIndex = isActive ? 0 : -1;
+        });
+    }
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
 }
@@ -100,11 +108,9 @@ function computeQslStatus(r) {
     return { cls: 'badge-none', text: t[lang].none };
 }
 
-window.selectCountry = function(code) {
-    currentCountryCode = code;
-    document.getElementById('selectedCountryCode').textContent = code;
-    document.getElementById('countryCodeWrapper').classList.remove('open');
-};
+// ============================================================
+// 國碼選單（原生 select，直接讀值）
+// ============================================================
 
 // ============================================================
 // 初始化
@@ -123,27 +129,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnSubmit = document.getElementById('btnSubmitApplication');
     const shipPhone = document.getElementById('shipPhone');
     const btnNoPhone = document.getElementById('btnNoPhone');
-    const countryCodeWrapper = document.getElementById('countryCodeWrapper');
-    const countryCodeTrigger = document.getElementById('countryCodeTrigger');
+    const countryCodeSelect = document.getElementById('countryCode');
 
     applyLanguage();
 
-    // 語言與國碼選單
+    // 語言切換
     document.getElementById('langToggle')?.addEventListener('click', (e) => {
         const opt = e.target.closest('.lang-option');
         if (opt) changeLang(opt.dataset.lang);
     });
+    document.getElementById('langToggle')?.addEventListener('keydown', (e) => {
+        const opt = e.target.closest('.lang-option');
+        if (!opt) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            changeLang(opt.dataset.lang);
+            return;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            const opts = [...document.querySelectorAll('#langToggle .lang-option')];
+            const idx = opts.indexOf(opt);
+            if (idx < 0) return;
+            const next = opts[(idx + (e.key === 'ArrowRight' ? 1 : -1) + opts.length) % opts.length];
+            next.focus();
+            changeLang(next.dataset.lang);
+        }
+    });
 
-    if (countryCodeTrigger) {
-        countryCodeTrigger.addEventListener('click', function(e) {
-            e.stopPropagation();
-            countryCodeWrapper.classList.toggle('open');
+    // 國碼
+    if (countryCodeSelect) {
+        currentCountryCode = countryCodeSelect.value;
+        countryCodeSelect.addEventListener('change', function() {
+            currentCountryCode = this.value;
         });
     }
-
-    document.addEventListener('click', function(e) {
-        if (countryCodeWrapper && !countryCodeWrapper.contains(e.target)) countryCodeWrapper.classList.remove('open');
-    });
 
     // 無電話切換
     if (btnNoPhone) {
@@ -151,16 +171,18 @@ document.addEventListener('DOMContentLoaded', function() {
             isPhoneDisabled = !isPhoneDisabled;
             if (isPhoneDisabled) {
                 shipPhone.style.display = 'none';
-                countryCodeWrapper.style.display = 'none';
+                if (countryCodeSelect) countryCodeSelect.style.display = 'none';
                 btnNoPhone.style.background = '#0b2a4a';
                 btnNoPhone.style.color = '#fff';
                 btnNoPhone.setAttribute('data-active', 'true');
+                btnNoPhone.setAttribute('aria-pressed', 'true');
             } else {
                 shipPhone.style.display = 'block';
-                countryCodeWrapper.style.display = 'block';
+                if (countryCodeSelect) countryCodeSelect.style.display = 'block';
                 btnNoPhone.style.background = '';
                 btnNoPhone.style.color = '';
                 btnNoPhone.removeAttribute('data-active');
+                btnNoPhone.setAttribute('aria-pressed', 'false');
             }
             applyLanguage();
         });

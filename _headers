@@ -6,4 +6,33 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+  X-Permitted-Cross-Domain-Policies: none
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://btcsstbtbnejuyexwbpn.supabase.co; connect-src 'self' https://btcsstbtbnejuyexwbpn.supabase.co wss://btcsstbtbnejuyexwbpn.supabase.co; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+# 管理後台：不要被搜尋引擎索引，也不要被快取
+/manage
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/manage.html
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+# 靜態資源快取（檔名沒有 hash，所以不用 immutable）
+/css/*
+  Cache-Control: public, max-age=3600
+
+/js/*
+  Cache-Control: public, max-age=3600
+
+/vendor/*
+  Cache-Control: public, max-age=86400
+
+/favicon.svg
+  Cache-Control: public, max-age=604800
+
+/robots.txt
+  Cache-Control: public, max-age=3600
+
+/sitemap.xml
+  Cache-Control: public, max-age=3600

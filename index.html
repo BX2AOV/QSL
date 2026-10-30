@@ -3,12 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BX2AOV QSL confirm</title>
+    <title>BX2AOV QSL confirm — 通聯紀錄與 QSL 卡交換狀態</title>
+    <meta name="description" content="BX2AOV 的業餘無線電通聯紀錄查詢，支援呼號搜尋、QSL 卡片圖片檢視與換卡申請狀態追蹤。表格時間為 UTC。">
+    <meta name="author" content="BX2AOV">
+    <meta name="theme-color" content="#0b2a4a">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="canonical" href="https://qsl-web.pages.dev/">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="favicon.svg">
+    <link rel="preconnect" href="https://btcsstbtbnejuyexwbpn.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://btcsstbtbnejuyexwbpn.supabase.co">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="BX2AOV QSL confirm">
+    <meta property="og:locale" content="zh_TW">
+    <meta property="og:title" content="BX2AOV QSL confirm — 通聯紀錄與 QSL 狀態">
+    <meta property="og:description" content="查詢 BX2AOV 的通聯紀錄與 QSL 卡交換狀態，支援呼號搜尋與卡片圖片檢視。">
+    <meta property="og:url" content="https://qsl-web.pages.dev/">
+    <meta property="og:image" content="https://btcsstbtbnejuyexwbpn.supabase.co/storage/v1/object/public/qsl-images/1793273956318_21_sent.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+
     <link rel="stylesheet" href="css/style.css">
-    <script src="vendor/supabase-js.min.js"></script>
+    <script src="vendor/supabase-js.min.js" defer></script>
 </head>
 <body>
-    <div class="app-container">
+    <a class="skip-link" href="#main">跳到主要內容</a>
+    <div class="app-container" id="main">
         <header class="header-bar">
             <div class="logo-area">
                 <span class="logo-icon">📡</span>
@@ -16,14 +36,14 @@
                 <span class="callsign-badge">BX2AOV</span>
             </div>
             <ul class="nav-links">
-                <li><a href="index.html" class="nav-tab active" data-zh="總覽" data-cn="总览" data-en="Overview" data-ja="概要">總覽</a></li>
+                <li><a href="index.html" class="nav-tab active" aria-current="page" data-zh="總覽" data-cn="总览" data-en="Overview" data-ja="概要">總覽</a></li>
                 <li><a href="apply.html" class="nav-tab" data-zh="我的申請" data-cn="我的申请" data-en="My Requests" data-ja="申請履歴">我的申請</a></li>
                 <li><a href="manage.html" class="nav-tab" data-zh="管理員" data-cn="管理员" data-en="Admin" data-ja="管理者">管理員</a></li>
             </ul>
             
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="lang-switch" id="langToggle" title="Switch Language">
-                    <div class="lang-slider" id="langSlider"></div>
+                <div class="lang-switch" id="langToggle" title="Switch Language" role="radiogroup" aria-label="語言切換">
+                    <div class="lang-slider" id="langSlider" aria-hidden="true"></div>
                     <span class="lang-option" data-lang="zh">繁</span>
                     <span class="lang-option" data-lang="cn">简</span>
                     <span class="lang-option" data-lang="en">EN</span>
@@ -43,23 +63,25 @@
                 </div>
                 
                 <div class="search-box">
+                    <label class="sr-only" for="searchInput">搜尋呼號</label>
                     <input type="text" id="searchInput" placeholder="搜尋呼號..." style="text-transform:uppercase;" data-zh-placeholder="搜尋呼號 (例: AOV)" data-cn-placeholder="搜索呼号 (例: AOV)" data-en-placeholder="Search Callsign (e.g. AOV)" data-ja-placeholder="コールサインを検索 (例: AOV)">
                 </div>
             </div>
             
             <div class="table-wrapper">
                 <table>
+                    <caption class="sr-only">通聯紀錄與 QSL 卡交換狀態</caption>
                     <thead>
                         <tr>
-                            <th data-zh="日期" data-cn="日期" data-en="Date" data-ja="日付">日期</th>
-                            <th data-zh="時間 (UTC)" data-cn="时间 (UTC)" data-en="Time (UTC)" data-ja="時間 (UTC)">時間 (UTC)</th>
-                            <th data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
-                            <th data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
-                            <th data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
-                            <th data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受領 QSL">收到 QSL</th>
-                            <th data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="送付 QSL">發出 QSL</th>
-                            <th data-zh="狀態" data-cn="状态" data-en="Status" data-ja="ステータス">狀態</th>
-                            <th data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
+                            <th scope="col" data-zh="日期" data-cn="日期" data-en="Date" data-ja="日付">日期</th>
+                            <th scope="col" data-zh="時間 (UTC)" data-cn="时间 (UTC)" data-en="Time (UTC)" data-ja="時間 (UTC)">時間 (UTC)</th>
+                            <th scope="col" data-zh="呼號" data-cn="呼号" data-en="Callsign" data-ja="コールサイン">呼號</th>
+                            <th scope="col" data-zh="頻段" data-cn="频段" data-en="Band" data-ja="バンド">頻段</th>
+                            <th scope="col" data-zh="模式" data-cn="模式" data-en="Mode" data-ja="モード">模式</th>
+                            <th scope="col" data-zh="收到 QSL" data-cn="收到 QSL" data-en="Rcvd QSL" data-ja="受領 QSL">收到 QSL</th>
+                            <th scope="col" data-zh="發出 QSL" data-cn="发出 QSL" data-en="Sent QSL" data-ja="送付 QSL">發出 QSL</th>
+                            <th scope="col" data-zh="狀態" data-cn="状态" data-en="Status" data-ja="ステータス">狀態</th>
+                            <th scope="col" data-zh="備註" data-cn="备注" data-en="Notes" data-ja="備考">備註</th>
                         </tr>
                     </thead>
                     <tbody id="qsoTableBody">
@@ -70,13 +92,13 @@
         </section>
     </div>
 
-    <div class="lightbox" id="lightbox">
-        <span class="lightbox-close" id="lightboxClose">×</span>
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="QSL 卡片大圖">
+        <button type="button" class="lightbox-close" id="lightboxClose" aria-label="關閉">×</button>
         <img id="lightboxImg" src="" alt="QSL 卡大圖">
     </div>
 
-    <div id="toast" class="toast">操作成功</div>
+    <div id="toast" class="toast" role="status" aria-live="polite">操作成功</div>
 
-    <script src="js/script.js"></script>
+    <script src="js/script.js" defer></script>
 </body>
 </html>

@@ -39,7 +39,15 @@ function applyLanguage() {
     });
 
     const toggle = document.getElementById('langToggle');
-    if (toggle) toggle.setAttribute('data-active', currentLang);
+    if (toggle) {
+        toggle.setAttribute('data-active', currentLang);
+        toggle.querySelectorAll('.lang-option').forEach(opt => {
+            const isActive = opt.dataset.lang === currentLang;
+            opt.setAttribute('role', 'radio');
+            opt.setAttribute('aria-checked', isActive ? 'true' : 'false');
+            opt.tabIndex = isActive ? 0 : -1;
+        });
+    }
 
     const langMap = { zh: 'zh-Hant', cn: 'zh-Hans', en: 'en', ja: 'ja' };
     document.documentElement.lang = langMap[currentLang] || 'zh-Hant';
@@ -96,14 +104,23 @@ function computeQslStatus(r) {
     return { cls: 'badge-none', text: t[lang].none };
 }
 
+let lastFocusedThumb = null;
+
 function openLightbox(src) {
     if (!src) return;
+    lastFocusedThumb = document.activeElement;
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightbox').classList.add('show');
+    const closeBtn = document.getElementById('lightboxClose');
+    if (closeBtn) closeBtn.focus();
 }
 function closeLightbox() {
-    document.getElementById('lightbox').classList.remove('show');
+    const lb = document.getElementById('lightbox');
+    if (!lb || !lb.classList.contains('show')) return;
+    lb.classList.remove('show');
     document.getElementById('lightboxImg').src = '';
+    if (lastFocusedThumb && typeof lastFocusedThumb.focus === 'function') lastFocusedThumb.focus();
+    lastFocusedThumb = null;
 }
 
 // ============================================================
@@ -165,10 +182,10 @@ function renderMainTable() {
         
         // C-2 修復：屬性值用 escAttr 轉義；移除內聯 onclick，改 data-src 由事件委託處理
         const recvImg = r.receivedImg 
-            ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="Received QSL">` 
+            ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視收到的 QSL 卡">` 
             : '';
         const sentImg = r.sentImg 
-            ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="Sent QSL">` 
+            ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視發出的 QSL 卡">` 
             : '';
         
         let displayBand = r.band;
@@ -310,6 +327,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);
     document.getElementById('lightboxClose')?.addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox();
+    });
+
+    // 鍵盤操作：縮圖以 Enter / Space 開啟燈箱
+    document.getElementById('qsoTableBody')?.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const img = e.target.closest('.qsl-thumb');
+        if (!img) return;
+        e.preventDefault();
+        const src = img.dataset.src || img.getAttribute('src');
+        if (src) openLightbox(src);
+    });
+
+    // 鍵盤操作：語言切換（Enter / Space 選擇，左右鍵切換）
+    document.getElementById('langToggle')?.addEventListener('keydown', (e) => {
+        const opt = e.target.closest('.lang-option');
+        if (!opt) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            changeLang(opt.dataset.lang);
+            return;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            const opts = [...document.querySelectorAll('#langToggle .lang-option')];
+            const idx = opts.indexOf(opt);
+            if (idx < 0) return;
+            const next = opts[(idx + (e.key === 'ArrowRight' ? 1 : -1) + opts.length) % opts.length];
+            next.focus();
+            changeLang(next.dataset.lang);
+        }
+    });
 
     fetchData();
 });
