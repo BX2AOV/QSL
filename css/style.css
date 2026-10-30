@@ -82,7 +82,7 @@ select:focus-visible,
     text-align: center;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #7e96af;
+    color: #55697f;
     z-index: 2;
     transition: color 0.3s;
 }
@@ -199,7 +199,7 @@ tr:hover td { background: #fafdff; }
 .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #0b2a4a; color: #fff; padding: 14px 32px; border-radius: 60px; font-weight: 500; font-size: 0.95rem; opacity: 0; pointer-events: none; transition: 0.3s ease; box-shadow: 0 12px 28px rgba(0,0,0,0.2); z-index: 3000; white-space: nowrap; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .flex-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.empty-state { text-align: center; padding: 40px 20px; color: #7e96af; }
+.empty-state { text-align: center; padding: 40px 20px; color: #5a6e85; }
 
 /* ===== 響應式 (手機版優化) ===== */
 @media (max-width: 700px) {

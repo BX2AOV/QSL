@@ -1,0 +1,9 @@
+# 本機產出的報告不要進 repo（Cloudflare Pages 會把 repo 內容部署成公開檔案）
+風險*.html
+風險報告*.html
+風險評估*.html
+
+# 編輯器 / 系統檔
+.DS_Store
+Thumbs.db
+*.log
