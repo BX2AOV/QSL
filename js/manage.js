@@ -559,11 +559,11 @@ async function handleQslImageUpload(recordId, type, event) {
                 return; 
             }
 
-            // 縮圖上傳失敗不影響主圖
+            // 縮圖上傳失敗不影響主圖（不覆寫，避免需要 UPDATE policy）
             if (thumbBlob) {
                 const { error: thumbError } = await _supabase.storage
                     .from('qsl-images')
-                    .upload(thumbName, thumbBlob, { contentType: 'image/jpeg', upsert: true });
+                    .upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
                 if (thumbError) console.warn('縮圖上傳失敗（不影響主圖）:', thumbError.message);
             }
 
@@ -651,10 +651,6 @@ async function buildMissingThumbs() {
         const thumbName = fileName.replace(/\.(jpe?g|png)$/i, '_thumb.jpg');
 
         try {
-            // 已有縮圖就跳過
-            const head = await fetch(t.url.replace(/\/[^/]+$/, '/' + thumbName), { method: 'HEAD' });
-            if (head.ok) { skipped++; continue; }
-
             const img = new Image();
             img.crossOrigin = 'anonymous';
             await new Promise((ok, no) => {
@@ -674,10 +670,19 @@ async function buildMissingThumbs() {
 
             const { error } = await _supabase.storage
                 .from('qsl-images')
-                .upload(thumbName, blob, { contentType: 'image/jpeg', upsert: true });
+                .upload(thumbName, blob, { contentType: 'image/jpeg' });
 
-            if (error) { failed++; console.warn('縮圖失敗:', fileName, error.message); }
-            else created++;
+            if (error) {
+                const msg = (error.message || '').toLowerCase();
+                if (msg.includes('duplicate') || msg.includes('already exists') || error.statusCode === 409) {
+                    skipped++;
+                } else {
+                    failed++;
+                    console.warn('縮圖失敗:', fileName, error.message);
+                }
+            } else {
+                created++;
+            }
         } catch (e) {
             failed++;
             console.warn('縮圖失敗:', fileName, e);
