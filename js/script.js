@@ -72,6 +72,13 @@ function escAttr(text) {
         .replace(/'/g, '&#39;');
 }
 
+// 列表用縮圖：上傳時會額外存一份 *_thumb.jpg（寬 160px）
+// 舊圖沒有縮圖時，靠 error 事件退回原圖
+function thumbOf(url) {
+    if (!url) return '';
+    return /\.(jpe?g|png)$/i.test(url) ? url.replace(/\.(jpe?g|png)$/i, '_thumb.jpg') : url;
+}
+
 // ============================================================
 // 狀態判斷與翻譯
 // ============================================================
@@ -178,10 +185,10 @@ function renderMainTable() {
         
         // C-2 修復：屬性值用 escAttr 轉義；移除內聯 onclick，改 data-src 由事件委託處理
         const recvImg = r.receivedImg 
-            ? `<img src="${escAttr(r.receivedImg)}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視收到的 QSL 卡">` 
+            ? `<img src="${escAttr(thumbOf(r.receivedImg))}" data-src="${escAttr(r.receivedImg)}" class="qsl-thumb" alt="收到的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視收到的 QSL 卡">` 
             : '';
         const sentImg = r.sentImg 
-            ? `<img src="${escAttr(r.sentImg)}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視發出的 QSL 卡">` 
+            ? `<img src="${escAttr(thumbOf(r.sentImg))}" data-src="${escAttr(r.sentImg)}" class="qsl-thumb" alt="發出的 QSL 卡" loading="lazy" decoding="async" width="40" height="28" tabindex="0" role="button" aria-label="放大檢視發出的 QSL 卡">` 
             : '';
         
         let displayBand = r.band;
@@ -319,6 +326,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const src = img.dataset.src || img.getAttribute('src');
         if (src) openLightbox(src);
     });
+
+    // 縮圖載入失敗（舊圖沒有 _thumb 檔）就退回原圖
+    document.getElementById('qsoTableBody')?.addEventListener('error', (e) => {
+        const img = e.target;
+        if (!img || img.tagName !== 'IMG' || img.dataset.thumbFallback === '1') return;
+        const full = img.dataset.src;
+        if (full && img.getAttribute('src') !== full) {
+            img.dataset.thumbFallback = '1';
+            img.src = full;
+        }
+    }, true);
 
     const lb = document.getElementById('lightbox');
     if (lb) lb.addEventListener('click', closeLightbox);

@@ -9,8 +9,8 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://btcsstbtbnejuyexwbpn.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://btcsstbtbnejuyexwbpn.supabase.co">
-    <link rel="stylesheet" href="css/style.css?v=8c1dd30">
-    <script src="vendor/supabase-js.min.js?v=8c1dd30" defer></script>
+    <link rel="stylesheet" href="css/style.css?v=20261031b">
+    <script src="vendor/supabase-js.min.js?v=20261031b" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">跳到主要內容</a>
@@ -85,6 +85,11 @@
                     <button class="btn btn-primary" id="btnSyncLoTW" style="margin-top: 10px; width: 100%; background: #0e6b3e;">
                         🔄 從 LoTW 自動同步已確認卡片
                     </button>
+
+                    <button class="btn btn-outline" id="btnBuildThumbs" style="margin-top: 10px; width: 100%;" title="為舊圖片補產生列表用小圖，只需執行一次">
+                        🖼️ 補產生列表縮圖（只需一次）
+                    </button>
+                    <div id="thumbProgress" class="file-hint" style="margin-top:6px;"></div>
                 </div>
                 
                 <div>
@@ -162,6 +167,6 @@
     </div>
 
     <div id="toast" class="toast">操作成功</div>
-    <script src="js/manage.js?v=8c1dd30" defer></script>
+    <script src="js/manage.js?v=20261031b" defer></script>
 </body>
 </html>

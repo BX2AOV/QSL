@@ -434,7 +434,14 @@ async function deleteQslImage(recordId, type) {
     if (!imgUrl) return;
     try {
         const fileName = imgUrl.split('/').pop();
-        if (fileName) await _supabase.storage.from('qsl-images').remove([fileName]);
+        if (fileName) {
+            // 連同列表用的縮圖一起刪（縮圖不存在時忽略錯誤）
+            await _supabase.storage.from('qsl-images').remove([fileName]);
+            const thumbName = fileName.replace(/\.(jpe?g|png)$/i, '_thumb.jpg');
+            if (thumbName !== fileName) {
+                await _supabase.storage.from('qsl-images').remove([thumbName]);
+            }
+        }
     } catch (e) { console.error('Storage 刪除失敗:', e); }
     
     const updateData = {};
@@ -532,12 +539,32 @@ async function handleQslImageUpload(recordId, type, event) {
             const fileExt = 'jpg';
             const fileName = `${Date.now()}_${recordId}_${type}.${fileExt}`;
 
+            // 先產生列表用縮圖（寬 160px），讓首頁不必下載原圖
+            const thumbName = fileName.replace(/\.jpg$/, '_thumb.jpg');
+            const thumbBlob = await new Promise((resolve) => {
+                const tw = 160;
+                const th = Math.max(1, Math.round((height * tw) / width));
+                const tc = document.createElement('canvas');
+                tc.width = tw;
+                tc.height = th;
+                tc.getContext('2d').drawImage(img, 0, 0, tw, th);
+                tc.toBlob((b) => resolve(b), 'image/jpeg', 0.72);
+            });
+
             const { error: uploadError } = await _supabase.storage.from('qsl-images').upload(fileName, blob, { contentType: 'image/jpeg' });
             
             if (uploadError) { 
                 showToast('❌ 圖片上傳失敗: ' + uploadError.message); 
                 event.target.value=''; 
                 return; 
+            }
+
+            // 縮圖上傳失敗不影響主圖
+            if (thumbBlob) {
+                const { error: thumbError } = await _supabase.storage
+                    .from('qsl-images')
+                    .upload(thumbName, thumbBlob, { contentType: 'image/jpeg', upsert: true });
+                if (thumbError) console.warn('縮圖上傳失敗（不影響主圖）:', thumbError.message);
             }
 
             const { data: { publicUrl } } = _supabase.storage.from('qsl-images').getPublicUrl(fileName);
@@ -589,6 +616,77 @@ async function handleQslImageUpload(recordId, type, event) {
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+}
+
+// ============================================================
+// 一次性補產生縮圖（給先前已上傳、沒有 _thumb 檔的舊圖片）
+// ============================================================
+async function buildMissingThumbs() {
+    const btn = document.getElementById('btnBuildThumbs');
+    const info = document.getElementById('thumbProgress');
+    if (!btn || btn.disabled) return;
+
+    const targets = [];
+    (allRecords || []).forEach(r => {
+        ['receivedImg', 'sentImg'].forEach(k => {
+            const url = r[k];
+            if (url) targets.push({ id: r.id, key: k, url });
+        });
+    });
+
+    if (targets.length === 0) {
+        if (info) info.textContent = '沒有找到任何 QSL 圖片。';
+        return;
+    }
+
+    btn.disabled = true;
+    let done = 0, created = 0, skipped = 0, failed = 0;
+
+    for (const t of targets) {
+        done++;
+        if (info) info.textContent = `處理中 ${done}/${targets.length}…（新增 ${created}，略過 ${skipped}，失敗 ${failed}）`;
+
+        const fileName = t.url.split('/').pop();
+        if (!fileName || !/\.(jpe?g|png)$/i.test(fileName)) { skipped++; continue; }
+        const thumbName = fileName.replace(/\.(jpe?g|png)$/i, '_thumb.jpg');
+
+        try {
+            // 已有縮圖就跳過
+            const head = await fetch(t.url.replace(/\/[^/]+$/, '/' + thumbName), { method: 'HEAD' });
+            if (head.ok) { skipped++; continue; }
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((ok, no) => {
+                img.onload = ok;
+                img.onerror = () => no(new Error('load failed'));
+                img.src = t.url;
+            });
+
+            const tw = 160;
+            const th = Math.max(1, Math.round((img.height * tw) / img.width));
+            const tc = document.createElement('canvas');
+            tc.width = tw;
+            tc.height = th;
+            tc.getContext('2d').drawImage(img, 0, 0, tw, th);
+            const blob = await new Promise(res => tc.toBlob(res, 'image/jpeg', 0.72));
+            if (!blob) { failed++; continue; }
+
+            const { error } = await _supabase.storage
+                .from('qsl-images')
+                .upload(thumbName, blob, { contentType: 'image/jpeg', upsert: true });
+
+            if (error) { failed++; console.warn('縮圖失敗:', fileName, error.message); }
+            else created++;
+        } catch (e) {
+            failed++;
+            console.warn('縮圖失敗:', fileName, e);
+        }
+    }
+
+    btn.disabled = false;
+    if (info) info.textContent = `✅ 完成：新增 ${created} 張縮圖，略過 ${skipped} 張（已存在或格式不符），失敗 ${failed} 張。`;
+    showToast(`✅ 縮圖處理完成：新增 ${created} 張`);
 }
 
 // ============================================================
@@ -779,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnClearFiles')?.addEventListener('click', clearSelectedFiles);
     
     document.getElementById('btnAddManual')?.addEventListener('click', addManualRecord);
-
+    document.getElementById('btnBuildThumbs')?.addEventListener('click', buildMissingThumbs);
     document.getElementById('adminSearchInput')?.addEventListener('input', function() { currentPage = 1; renderAdminTable(); });
     document.getElementById('filterStatus')?.addEventListener('change', function() { currentPage = 1; renderAdminTable(); });
     document.getElementById('filterMode')?.addEventListener('change', function() { currentPage = 1; renderAdminTable(); });
