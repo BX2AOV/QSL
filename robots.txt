@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://qsl-web.pages.dev/sitemap.xml
+Sitemap: https://bx2aov.top/sitemap.xml

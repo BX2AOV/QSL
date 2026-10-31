@@ -1,7 +1,7 @@
 # BX2AOV QSL confirm
 
 業餘無線電通聯紀錄與 QSL 卡交換狀態查詢網站。
-線上版本：<https://qsl-web.pages.dev>
+線上版本：<https://bx2aov.top>（備用：<https://qsl-web.pages.dev>）
 
 ## 功能
 
