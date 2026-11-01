@@ -186,8 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 記住上次查詢
-    const savedCall = localStorage.getItem('user_callsign');
+    // 記住上次查詢；網址有 ?call=XXX 時優先使用（確認信裡的「查看我的申請」）
+    const urlCall = (new URLSearchParams(location.search).get('call') || '').trim().toUpperCase();
+    const savedCall = urlCall || (localStorage.getItem('user_callsign') || '').trim().toUpperCase();
     if (savedCall) {
         queryInput.value = savedCall;
         setTimeout(() => doQuery(), 100);

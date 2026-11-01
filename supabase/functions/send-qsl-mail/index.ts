@@ -128,7 +128,7 @@ function buildMail(opts: {
     `申請日期：${reqDate}`,
     '',
     '卡片寄出後會再更新狀態，你也可以回到網站「我的申請」查看。',
-    'BX2AOV QSL confirm — https://bx2aov.top',
+    `BX2AOV QSL confirm — https://bx2aov.top/apply?call=${encodeURIComponent(call)}`,
   ].filter((l) => l !== '').join('\n')
 
   const html = `<!doctype html>
@@ -146,7 +146,7 @@ function buildMail(opts: {
       <tr><td style="padding:6px 0;color:#5a6e85;">申請日期</td><td style="padding:6px 0;">${escapeHtml(reqDate)}</td></tr>
     </table>
     <p style="margin:0 0 18px;color:#5a6e85;font-size:.9rem;">卡片寄出後會更新狀態，你也可以回到網站「我的申請」查看。</p>
-    <a href="https://bx2aov.top/apply" style="display:inline-block;background:#0b2a4a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:40px;font-weight:600;font-size:.9rem;">查看我的申請</a>
+    <a href="https://bx2aov.top/apply?call=${encodeURIComponent(call)}" style="display:inline-block;background:#0b2a4a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:40px;font-weight:600;font-size:.9rem;">查看我的申請</a>
     <p style="margin:20px 0 0;color:#93a4bf;font-size:.8rem;">這封是系統自動寄出的通知信，請勿直接回覆。</p>
   </div>
 </body></html>`
