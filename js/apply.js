@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (sentThis) {
                 actionHtml = `<span class="status-badge applied" title="這筆的卡片已經寄出">已寄出</span>`;
             } else if (lockedByCall) {
-                actionHtml = `<span class="status-badge applied" title="同一呼號已經寄過卡片，等新卡做好再由管理員開放">已寄出卡片</span>`;
+                actionHtml = `<span class="status-badge applied" title="這個呼號的其他通聯已經寄過卡片；新卡做好後由管理員開放這一筆">同呼號已寄卡</span>`;
             } else {
                 actionHtml = `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             }
