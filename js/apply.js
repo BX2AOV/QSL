@@ -303,12 +303,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             let displayBand = r.band;
+            let displayMode = r.mode;
             let displayNote = r.note || '—';
 
             if (r.note) {
                 const satMatch = r.note.match(/^\[(.*?)\]/);
                 if (satMatch && satMatch[1] && !satMatch[1].includes(':')) {
                     displayBand = satMatch[1];
+                    displayMode = 'SAT';
                     // 備註只保留「衛星通聯」，不顯示衛星名稱
                     displayNote = displayNote.replace(/^\[.*?\]\s*/, '');
                 }
@@ -323,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${escapeHtml(r.date)}</td>
                 <td><strong>${escapeHtml(r.call)}</strong></td>
                 <td>${escapeHtml(displayBand)}</td> 
-                <td>${escapeHtml(r.mode)}</td>
+                <td>${escapeHtml(displayMode)}</td>
                 <td><span class="${st.cls}">${st.text}</span>${r.lotwConfirmed ? '<span class="badge-lotw" title="LoTW 已確認通聯">LoTW ✓</span>' : ''}</td>
                 <td>${escapeHtml(displayNote)}</td>
             </tr>`;
