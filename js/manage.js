@@ -351,7 +351,7 @@ async function renderAdminTable() {
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
             <td>${reqHtml}</td>
             <td>${recvHtml}${sentHtml}</td>
-            <td>${statusSelect}</td>
+            <td>${statusSelect}${r.lotwConfirmed ? `<div class="lotw-chip" title="LoTW 已確認${r.lotwDate ? '（' + escapeHtml(String(r.lotwDate).slice(0, 10)) + '）' : ''}">LoTW ✓</div>` : ''}</td>
             <td>
                 <button class="btn-delete-record" data-id="${escAttr(r.id)}" aria-label="刪除這筆紀錄">🗑️</button>
             </td>
@@ -899,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { data, error } = await _supabase.functions.invoke('swift-task');
 
         btn.disabled = false;
-        btn.textContent = '🔄 從 LoTW 自動同步已確認卡片';
+        btn.textContent = '🔄 從 LoTW 自動同步確認狀態';
 
         if (error) {
             showToast('❌ 同步失敗: ' + error.message);

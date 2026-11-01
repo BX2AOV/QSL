@@ -193,11 +193,9 @@ serve(async (req) => {
       const pick = sameBand.length > 0 ? sameBand : candidates
 
       matched++
-      for (const r of pick) {
-        // 已是 completed 或使用者標為「不需 QSL」的，不要覆寫
-        if (r.status === 'completed' || r.status === 'not_needed') continue
-        toUpdate.add(r.id)
-      }
+      // LoTW 確認只代表「通聯已被 LoTW 確認」，不代表已交換卡片，
+      // 所以只標記 lotwConfirmed，完全不動 status。
+      for (const r of pick) toUpdate.add(r.id)
     }
 
     let updated = 0
@@ -206,14 +204,14 @@ serve(async (req) => {
     for (const id of toUpdate) {
       const { error } = await admin
         .from('qsl_records')
-        .update({ status: 'completed', completedDate: now })
+        .update({ lotwConfirmed: true, lotwDate: now })
         .eq('id', id)
       if (!error) updated++
     }
 
     return json({
       success: true,
-      message: `LoTW 已確認 ${adi.length} 筆，對到 ${matched} 筆，更新 ${updated} 筆。`,
+      message: `LoTW 已確認 ${adi.length} 筆，對到 ${matched} 筆，標記 ${updated} 筆。`,
       lotw: adi.length,
       matched,
       updated,

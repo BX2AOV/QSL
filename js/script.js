@@ -141,7 +141,7 @@ async function fetchData() {
     // 任何人只要狂刷首頁就能無限觸發。已移到管理後台登入後才執行。
 
     // H-1 修復：改讀公開視圖，requests 欄位根本不下發
-    const fields = 'id,date,time,call,band,mode,note,receivedImg,sentImg,status,has_requests';
+    const fields = 'id,date,time,call,band,mode,note,receivedImg,sentImg,status,has_requests,lotwConfirmed';
     let data = null;
     try {
         data = await SB.select('qsl_public', 'select=' + fields + '&order=date.desc,time.desc');
@@ -229,7 +229,7 @@ function renderMainTable() {
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
             <td style="text-align:center;">${recvImg}</td>
             <td style="text-align:center;">${sentImg}</td>
-            <td><span class="${st.cls}">${st.text}</span></td>
+            <td><span class="${st.cls}">${st.text}</span>${r.lotwConfirmed ? '<span class="badge-lotw" title="LoTW 已確認通聯">LoTW ✓</span>' : ''}</td>
             <td>${escapeHtml(displayNote)}</td>
         </tr>`;
     }).join('');

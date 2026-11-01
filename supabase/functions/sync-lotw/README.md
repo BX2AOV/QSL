@@ -10,7 +10,8 @@
 2. 解析 `<CALL>` / `<QSO_DATE>` / `<TIME_ON>` / `<BAND>`，只留 `QSL_RCVD: Y`。
 3. 用「呼號＋日期」比對 `qsl_records`，同一天多筆時挑時間最接近的；
    同時間多筆時優先挑頻段相同的。
-4. 把對到的紀錄改成 `status = 'completed'` 並寫入 `completedDate`。
+4. 把對到的紀錄標記 `"lotwConfirmed" = true` 並寫入 `"lotwDate"`。
+   **不會更動 `status`**：LoTW 確認只代表通聯已被 LoTW 確認，不代表已交換卡片。
 
 ## 安全性
 
@@ -32,5 +33,5 @@
 
 - 一定要帶 `qso_qslsince`。不帶的話 LoTW 只回「上次下載之後」的新確認，
   會出現「只同步到幾筆」的假象。
-- 已是 `completed` 或使用者標為 `not_needed` 的紀錄不會被覆寫。
+- 只更新 `lotwConfirmed` / `lotwDate`，`status` 完全不動，也不會覆寫你手動標的狀態。
 - 部署：`npx supabase functions deploy sync-lotw`（slug 會沿用 `swift-task`）。

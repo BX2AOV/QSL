@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td><strong>${escapeHtml(r.call)}</strong></td>
                 <td>${escapeHtml(displayBand)}</td> 
                 <td>${escapeHtml(r.mode)}</td>
-                <td><span class="${st.cls}">${st.text}</span></td>
+                <td><span class="${st.cls}">${st.text}</span>${r.lotwConfirmed ? '<span class="badge-lotw" title="LoTW 已確認通聯">LoTW ✓</span>' : ''}</td>
                 <td>${escapeHtml(displayNote)}</td>
             </tr>`;
         }).join('');
