@@ -130,7 +130,7 @@ function buildMail(opts: {
     '如果你想直接把 QSL 卡寄給我，可以寄到：',
     'BX2AOV',
     '台灣台北市文山區久康街60巷5號3樓',
-    '3F., No. 5, Ln. 60, Jiukang St., Wenshan Dist., Taipei City 116, Taiwan (R.O.C.)',
+    '3F., No. 5, Ln. 60, Jiukang St., Wenshan Dist., Taipei City 116, Taiwan',
     '',
     '卡片寄出後會再更新狀態，你也可以回到網站「我的申請」查看。',
     `BX2AOV QSL confirm — https://bx2aov.top/apply?call=${encodeURIComponent(call)}`,
@@ -155,7 +155,7 @@ function buildMail(opts: {
       <div style="color:#2b4056;line-height:1.7;font-size:.92rem;">
         BX2AOV<br>
         台灣台北市文山區久康街60巷5號3樓<br>
-        <span style="color:#5a6e85;font-size:.88rem;">3F., No. 5, Ln. 60, Jiukang St., Wenshan Dist., Taipei City 116, Taiwan (R.O.C.)</span>
+        <span style="color:#5a6e85;font-size:.88rem;">3F., No. 5, Ln. 60, Jiukang St., Wenshan Dist., Taipei City 116, Taiwan</span>
       </div>
     </div>
     <p style="margin:0 0 18px;color:#5a6e85;font-size:.9rem;">卡片寄出後會更新狀態，你也可以回到網站「我的申請」查看。</p>
