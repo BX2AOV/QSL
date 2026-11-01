@@ -60,8 +60,9 @@ function parseAdif(txt: string): LotwQso[] {
       qslDate: qslDate.length >= 8
         ? `${qslDate.slice(0, 4)}-${qslDate.slice(4, 6)}-${qslDate.slice(6, 8)}`
         : '',
-      // 有 QSL_RCVD=Y 才算確認；若只有 LoTW 專用欄位也是確認
-      confirmed: qslRcvd === 'Y' || lotwQslRcvd === 'Y',
+      // 必須是 QSL_RCVD=Y，而且要有 LoTW 的配對時間（APP_LoTW_RXQSL）或 LoTW 專用欄位，
+      // 才算是「LoTW 已確認」。只有 QSO 存在不算。
+      confirmed: qslRcvd === 'Y' && (rxQsl !== '' || lotwQslRcvd === 'Y'),
     })
   }
   return out
