@@ -7,8 +7,9 @@
 1. 用 `LOTW_USER` / `LOTW_PASS` 以 **POST 表單** 向
    `https://lotw.arrl.org/lotwuser/lotwreport.adi` 取得已確認 QSL 的 ADIF。
    （用 GET 把帳密放在 query string 只會回登入頁，解析不到任何紀錄。）
-2. 解析 `<CALL>` / `<QSO_DATE>` / `<TIME_ON>` / `<BAND>` / `<QSL_RCVD>`，
+2. 解析 `<CALL>` / `<QSO_DATE>` / `<TIME_ON>` / `<BAND>` / `<QSL_RCVD>` / `<SAT_NAME>` / `<PROP_MODE>`，
    只有 `QSL_RCVD: Y`（或 `LOTW_QSL_RCVD: Y`）才算 LoTW 已確認。
+   衛星通聯會把 `SAT_NAME` 寫進備註（例如 `[SO-50] 衛星通聯`），前台就會顯示成衛星通聯。
 3. 用「呼號＋日期」比對 `qsl_records`，同一天多筆時挑時間最接近的；
    同時間多筆時優先挑頻段相同的。
 4. 把對到的紀錄標記 `"lotwConfirmed" = true`，`"lotwDate"` 寫入 LoTW 的確認日期
@@ -16,6 +17,8 @@
    **不會更動 `status`**：LoTW 確認只代表通聯已被 LoTW 確認，不代表已交換卡片。
 5. 以前標過、但這次 LoTW 沒有的紀錄會自動取消標記（`lotwConfirmed = false`），
    讓網站結果跟 LoTW 保持一致。
+6. 原本沒有備註、但 LoTW 標示為衛星通聯的紀錄，會補上 `[衛星名稱] 衛星通聯`
+   （不覆寫手動填的備註）。
 6. LoTW 有確認、網站卻完全沒有的通聯，若是**最近 30 天**的會自動補進
    `qsl_records`（`status = none`、`lotwConfirmed = true`），避免「今天通的沒同步」。
    超過 30 天的只會在回報訊息裡列出，不會自動新增（避免使用者刪掉的舊資料一直被加回來）。

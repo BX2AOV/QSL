@@ -25,6 +25,8 @@ type LotwQso = {
   time: string
   band: string
   mode: string
+  satName: string
+  propMode: string
   qslRcvd: string
   lotwQslRcvd: string
   rxQsl: string
@@ -54,6 +56,8 @@ function parseAdif(txt: string): LotwQso[] {
       time: field(block, 'TIME_ON'),
       band: field(block, 'BAND').toUpperCase(),
       mode: field(block, 'MODE').toUpperCase(),
+      satName: field(block, 'SAT_NAME').toUpperCase(),
+      propMode: field(block, 'PROP_MODE').toUpperCase(),
       qslRcvd,
       lotwQslRcvd,
       rxQsl,
@@ -105,6 +109,7 @@ type Row = {
   time: string
   band: string
   mode: string
+  note: string | null
   status: string
   lotwConfirmed: boolean | null
   lotwDate: string | null
@@ -202,7 +207,7 @@ serve(async (req) => {
     /* ---- 一次讀出全部紀錄，在記憶體比對（避免 maybeSingle 遇到重複就失敗） ---- */
     const { data: rows, error: dbErr } = await admin
       .from('qsl_records')
-      .select('id, call, date, time, band, mode, status, "lotwConfirmed", "lotwDate"')
+      .select('id, call, date, time, band, mode, note, status, "lotwConfirmed", "lotwDate"')
       .limit(5000)
     if (dbErr) throw dbErr
 
@@ -222,6 +227,7 @@ serve(async (req) => {
     const qslDateById = new Map<number, string>()
     const unmatched: LotwQso[] = []
     const unmatchedKeys = new Set<string>()
+    const noteById = new Map<number, string>()
     let matched = 0
 
     for (const a of adi) {
@@ -266,9 +272,14 @@ serve(async (req) => {
       const pick = sameBand.length > 0 ? sameBand : candidates
 
       matched++
+      const satNote = a.satName
+        ? `[${a.satName}] 衛星通聯`
+        : (a.propMode === 'SAT' ? '[SAT] 衛星通聯' : '')
       for (const r of pick) {
         matchedIds.add(r.id)
         if (!qslDateById.has(r.id)) qslDateById.set(r.id, a.qslDate)
+        // 原本沒有備註、但 LoTW 說是衛星通聯的，補上衛星名稱
+        if (satNote && !(r.note ?? '').trim()) noteById.set(r.id, satNote)
       }
     }
 
@@ -298,6 +309,28 @@ serve(async (req) => {
       updated += job.ids.length
     })
 
+    /* ---- 補上衛星名稱（只補原本沒有備註的，不覆寫手動備註） ---- */
+    let noteFixed = 0
+    if (noteById.size > 0) {
+      const byNote = new Map<string, number[]>()
+      for (const [id, note] of noteById) {
+        if (!byNote.has(note)) byNote.set(note, [])
+        byNote.get(note)!.push(id)
+      }
+      const noteJobs: Array<{ note: string; ids: number[] }> = []
+      for (const [note, ids] of byNote) {
+        for (let i = 0; i < ids.length; i += 200) noteJobs.push({ note, ids: ids.slice(i, i + 200) })
+      }
+      await runPool(noteJobs, 8, async (job) => {
+        const { error } = await admin
+          .from('qsl_records')
+          .update({ note: job.note })
+          .in('id', job.ids)
+        if (error) throw error
+        noteFixed += job.ids.length
+      })
+    }
+
     /* ---- LoTW 有確認、網站卻沒有的通聯：自動補進資料庫（狀態維持「未申請」） ----
        只補最近 30 天的通聯，避免使用者刻意刪除的舊紀錄每次同步又被加回來。 */
     let added = 0
@@ -313,7 +346,9 @@ serve(async (req) => {
           call: a.call,
           band: a.band,
           mode: a.mode,
-          note: '',
+          note: a.satName
+            ? `[${a.satName}] 衛星通聯`
+            : (a.propMode === 'SAT' ? '[SAT] 衛星通聯' : ''),
           requests: [],
           lotwConfirmed: true,
           lotwDate: `${a.qslDate || nowDate}T00:00:00Z`,
@@ -349,12 +384,14 @@ serve(async (req) => {
     return json({
       success: true,
       message: `LoTW 已確認 ${adi.length} 筆，對到 ${matched} 筆，標記 ${updated} 筆`
+        + (noteFixed > 0 ? `，補上衛星名稱 ${noteFixed} 筆` : '')
         + (added > 0 ? `，自動新增 ${added} 筆` : '')
         + (cleared > 0 ? `，取消 ${cleared} 筆` : '')
         + (notAdded.length > 0 ? `；另有 ${notAdded.length} 筆在網站找不到（未自動新增）。` : '。'),
       lotw: adi.length,
       matched,
       updated,
+      noteFixed,
       added,
       cleared,
       unmatched: notAdded.map(a => ({
