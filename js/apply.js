@@ -365,9 +365,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             for (const id of selectedRecordIds) {
                 try {
+                    // 用該筆紀錄自己的呼號，避免查詢中的競態造成 CALL_MISMATCH
+                    const rec = matchedRecords.find(r => Number(r.id) === Number(id));
                     await SB.rpc('submit_qsl_request', {
                         p_record_id: Number(id),
-                        p_user_call: queryCallsign,
+                        p_user_call: rec ? rec.call : queryCallsign,
                         p_ship_name: name,
                         p_ship_phone: finalPhone,
                         p_ship_zip: zip,

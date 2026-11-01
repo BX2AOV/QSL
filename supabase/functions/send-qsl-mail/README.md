@@ -20,12 +20,11 @@ curl -X POST "https://<project>.supabase.co/functions/v1/send-qsl-mail" \
 ## 行為
 
 1. 讀出該筆通聯的 `requests` jsonb，找「最新一筆、有 `shipEmail`、`mailSentAt` 為空、狀態 pending」的申請。
-2. 只寄 **今天建立** 的申請（避免舊資料被重複觸發）。
-3. 依序嘗試寄信供應商：
+2. 依序嘗試寄信供應商：
    - `RESEND_API_KEY` → Resend
    - `BREVO_API_KEY` → Brevo（有設定才會啟用）
    前一家失敗（額度用完、金鑰失效、5xx）就換下一家。
-4. 成功後在該筆申請寫入 `mailSentAt`、`mailProvider`；失敗寫入 `mailError`（不會擋住申請結果）。
+3. 成功後在該筆申請寫入 `mailSentAt`、`mailProvider`；失敗寫入 `mailError`（不會擋住申請結果）。
 
 ## Secrets
 

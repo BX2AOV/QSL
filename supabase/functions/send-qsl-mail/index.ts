@@ -198,13 +198,6 @@ serve(async (req) => {
       return json({ error: 'Email 格式不正確' }, 400)
     }
 
-    // 只寄「最近 10 分鐘內建立」的申請，避免被拿舊資料重複觸發
-    const reqDate = String(reqObj.requestDate || '')
-    const today = new Date().toISOString().slice(0, 10)
-    if (reqDate && reqDate !== today) {
-      return json({ ok: true, skipped: '申請不是今天建立的，不寄信' })
-    }
-
     const providers = buildProviders()
     if (providers.length === 0) {
       return json({ error: '沒有設定任何寄信服務（缺少 RESEND_API_KEY）' }, 500)
