@@ -127,6 +127,10 @@ function buildMail(opts: {
     '',
     `申請日期：${reqDate}`,
     '',
+    '如果你想直接把 QSL 卡寄給我，可以寄到：',
+    'BX2AOV',
+    '台灣台北市文山區久康街60巷5號3樓',
+    '',
     '卡片寄出後會再更新狀態，你也可以回到網站「我的申請」查看。',
     `BX2AOV QSL confirm — https://bx2aov.top/apply?call=${encodeURIComponent(call)}`,
   ].filter((l) => l !== '').join('\n')
@@ -145,6 +149,13 @@ function buildMail(opts: {
       ${note ? `<tr><td style="padding:6px 0;color:#5a6e85;">備註</td><td style="padding:6px 0;">${escapeHtml(note)}</td></tr>` : ''}
       <tr><td style="padding:6px 0;color:#5a6e85;">申請日期</td><td style="padding:6px 0;">${escapeHtml(reqDate)}</td></tr>
     </table>
+    <div style="margin:0 0 18px;padding:14px 16px;background:#f4f8ff;border:1px solid #d7e6ff;border-radius:12px;">
+      <div style="font-weight:700;color:#0b2a4a;margin-bottom:6px;">也可以直接把 QSL 卡寄給我</div>
+      <div style="color:#2b4056;line-height:1.7;font-size:.92rem;">
+        BX2AOV<br>
+        台灣台北市文山區久康街60巷5號3樓
+      </div>
+    </div>
     <p style="margin:0 0 18px;color:#5a6e85;font-size:.9rem;">卡片寄出後會更新狀態，你也可以回到網站「我的申請」查看。</p>
     <a href="https://bx2aov.top/apply?call=${encodeURIComponent(call)}" style="display:inline-block;background:#0b2a4a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:40px;font-weight:600;font-size:.9rem;">查看我的申請</a>
     <p style="margin:20px 0 0;color:#93a4bf;font-size:.8rem;">這封是系統自動寄出的通知信，請勿直接回覆。</p>
