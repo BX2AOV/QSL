@@ -352,8 +352,9 @@ async function renderAdminTable() {
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(display.mode)}</span></td>
             <td>${reqHtml}</td>
             <td>${recvHtml}${sentHtml}</td>
-            <td>${statusSelect}${r.lotwConfirmed ? `<div class="lotw-chip" title="LoTW 已確認${r.lotwDate ? '（' + escapeHtml(String(r.lotwDate).slice(0, 10)) + '）' : ''}">LoTW ✓</div>` : ''}</td>
+            <td>${statusSelect}${r.applyOpen ? `<div class="open-chip" title="已開放申請新卡">🎴 新卡已開放</div>` : ''}${r.lotwConfirmed ? `<div class="lotw-chip" title="LoTW 已確認${r.lotwDate ? '（' + escapeHtml(String(r.lotwDate).slice(0, 10)) + '）' : ''}">LoTW ✓</div>` : ''}</td>
             <td>
+                <button class="btn-open-apply${r.applyOpen ? ' is-open' : ''}" data-id="${escAttr(r.id)}" data-open="${r.applyOpen ? '1' : '0'}" title="${r.applyOpen ? '收回申請開放' : '新卡做好時，開放這個人再申請'}">${r.applyOpen ? '🔒 收回' : '🎴 開放新卡'}</button>
                 <button class="btn-delete-record" data-id="${escAttr(r.id)}" aria-label="刪除這筆紀錄">🗑️</button>
             </td>
         </tr>`;
@@ -420,6 +421,15 @@ async function changeStatus(recordId, newStatus) {
         allRecords = []; 
         renderAdminTable();
     }
+}
+
+async function setApplyOpen(recordId, open) {
+    showToast('⏳ 更新中...');
+    const { error } = await _supabase.from('qsl_records').update({ applyOpen: open }).eq('id', recordId);
+    if (error) { showToast('❌ 更新失敗：' + error.message); return; }
+    showToast(open ? '🎴 已開放申請新卡' : '🔒 已收回申請開放');
+    allRecords = [];
+    renderAdminTable();
 }
 
 async function deleteRecord(recordId) {
@@ -983,7 +993,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 6. 刪除整筆紀錄
+        // 6. 開放／收回新卡申請
+        const btnOpenApply = e.target.closest('.btn-open-apply');
+        if (btnOpenApply) {
+            setApplyOpen(Number(btnOpenApply.dataset.id), btnOpenApply.dataset.open !== '1');
+            return;
+        }
+
+        // 7. 刪除整筆紀錄
         const btnDelRecord = e.target.closest('.btn-delete-record');
         if (btnDelRecord) {
             deleteRecord(Number(btnDelRecord.dataset.id));

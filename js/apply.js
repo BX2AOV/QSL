@@ -277,10 +277,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 🌟 渲染上方通聯紀錄表格
     function renderQueryResult() {
+        // 同一呼號只要有一筆「已寄出／已交換完成」，其他通聯就不再給申請；
+        // 除非管理員針對那一筆按過「開放新卡」（applyOpen）。
+        const callHasSentCard = matchedRecords.some(x => x.status === 'sent' || x.status === 'completed');
+
         queryResultBody.innerHTML = matchedRecords.map(r => {
             const st = computeQslStatus(r);
             const already = isAlreadyRequested(r.id);
             const finished = r.status === 'completed' || r.status === 'not_needed';
+            const sentThis = r.status === 'sent';
+            const lockedByCall = callHasSentCard && !sentThis && !r.applyOpen;
 
             let actionHtml;
             if (finished) {
@@ -288,6 +294,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 actionHtml = `<span class="status-badge applied" title="不再受理申請">—</span>`;
             } else if (already) {
                 actionHtml = `<span class="status-badge applied">已申請</span>`;
+            } else if (sentThis) {
+                actionHtml = `<span class="status-badge applied" title="這筆的卡片已經寄出">已寄出</span>`;
+            } else if (lockedByCall) {
+                actionHtml = `<span class="status-badge applied" title="同一呼號已經寄過卡片，等新卡做好再由管理員開放">已寄出卡片</span>`;
             } else {
                 actionHtml = `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
             }
