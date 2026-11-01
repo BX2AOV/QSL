@@ -280,10 +280,17 @@ document.addEventListener('DOMContentLoaded', function() {
         queryResultBody.innerHTML = matchedRecords.map(r => {
             const st = computeQslStatus(r);
             const already = isAlreadyRequested(r.id);
-            
-            let actionHtml = already 
-                ? `<span class="status-badge applied">已申請</span>` 
-                : `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
+            const finished = r.status === 'completed' || r.status === 'not_needed';
+
+            let actionHtml;
+            if (finished) {
+                // 已交換完成／無需換卡：不再提供申請
+                actionHtml = `<span class="status-badge applied" title="不再受理申請">—</span>`;
+            } else if (already) {
+                actionHtml = `<span class="status-badge applied">已申請</span>`;
+            } else {
+                actionHtml = `<input type="checkbox" class="record-checkbox" data-id="${escAttr(r.id)}" ${selectedRecordIds.has(r.id) ? 'checked' : ''}>`;
+            }
             
             let displayBand = r.band;
             let displayNote = r.note || '—';
