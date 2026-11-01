@@ -32,7 +32,6 @@ select:focus-visible,
 [tabindex]:focus-visible {
     outline: 3px solid #0066cc;
     outline-offset: 2px;
-    border-radius: 6px;
 }
 .app-container { width: 100%; max-width: 1300px; } /* 稍微加寬最大寬度 */
 
@@ -245,7 +244,7 @@ tr:hover td { background: #fafdff; }
 /* ===== 後台表格：狀態選單與操作按鈕 ===== */
 .status-select-change {
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: 40px;
     border: 1px solid #cbdae8;
     font-size: 0.8rem;
     background: #fff;
