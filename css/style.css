@@ -337,7 +337,7 @@ html[data-theme="dark"] .filter-select,
 html[data-theme="dark"] .admin-login-box,
 html[data-theme="dark"] .manual-form input,
 html[data-theme="dark"] .manual-form select {
-    background: #182238 !important;
+    background-color: #182238 !important;
     color: #d7e3f4 !important;
     border-color: #2f405c !important;
 }
@@ -372,7 +372,20 @@ html[data-theme="dark"] .badge-lotw,
 html[data-theme="dark"] .lotw-chip { background: rgba(129,140,248,.18); color: #a5b4fc; border-color: rgba(129,140,248,.35); }
 
 /* 後台表格元件 */
-html[data-theme="dark"] .status-select-change { background: #182238 !important; color: #d7e3f4 !important; border-color: #2f405c !important; }
+html[data-theme="dark"] .status-select-change { background-color: #182238 !important; color: #d7e3f4 !important; border-color: #2f405c !important; }
+
+/* 深色模式的下拉箭頭改成淺色 */
+html[data-theme="dark"] select.filter-select,
+html[data-theme="dark"] select.status-select-change,
+html[data-theme="dark"] .manual-form select,
+html[data-theme="dark"] #countryCode {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23d7e3f4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-size: 12px 8px !important;
+    background-position: right 14px center !important;
+}
+html[data-theme="dark"] select.status-select-change { background-position: right 8px center !important; }
+html[data-theme="dark"] #countryCode { background-position: right 10px center !important; }
 html[data-theme="dark"] .upload-btns label { background: #1e2b42; border-color: #3a4a66; color: #c2d3e6; }
 html[data-theme="dark"] .upload-btns label:hover { background: #26364f; border-color: #5b7ba6; }
 html[data-theme="dark"] .btn-del-img,
@@ -386,6 +399,38 @@ html[data-theme="dark"] .req-detail { color: #cfdceb; }
 html[data-theme="dark"] .req-empty { color: #7f92a8; }
 html[data-theme="dark"] .warn-chip { background: rgba(251,191,36,.16); color: #fbbf24; }
 html[data-theme="dark"] .ok-chip { color: #34d399; }
+
+/* ===== 下拉選單統一外觀（自訂箭頭，避免文字壓到箭頭） ===== */
+select.filter-select,
+select.status-select-change,
+.manual-form select,
+#countryCode {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%231f3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px 8px;
+    padding-right: 38px;
+}
+select.status-select-change {
+    background-position: right 8px center;
+    padding-right: 28px;
+    max-width: 12em;
+}
+#countryCode {
+    background-position: right 10px center;
+    padding-right: 32px !important;
+}
+/* 下拉展開的選項也要有正確配色（深色模式很容易變成白底白字） */
+select option {
+    background-color: #ffffff;
+    color: #1f3a5f;
+}
+html[data-theme="dark"] select option {
+    background-color: #182238;
+    color: #d7e3f4;
+}
 
 /* ===== 列印（管理頁印地址用） ===== */
 @media print {

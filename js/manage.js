@@ -872,6 +872,30 @@ async function addManualRecord() {
 }
 
 // ============================================================
+// LoTW 同步結果顯示
+// ============================================================
+function renderLotwResult(data) {
+    const box = document.getElementById('lotwResult');
+    if (!box) return;
+    if (!data || data.error) { box.innerHTML = ''; return; }
+
+    const secs = data.elapsedMs ? (data.elapsedMs / 1000).toFixed(1) + ' 秒' : '';
+    const lines = [];
+    lines.push(`<span style="color:#0e6b3e; font-weight:600;">LoTW 確認 ${data.lotw} 筆，網站對到 ${data.matched} 筆</span>`
+        + (secs ? `（耗時 ${secs}）` : ''));
+    if (data.added) lines.push(`➕ 自動新增 ${data.added} 筆（狀態為「未申請」，可在下方修改）`);
+    if (data.cleared) lines.push(`↩️ 取消 ${data.cleared} 筆舊標記（LoTW 已沒有這些確認）`);
+    if (data.unmatched && data.unmatched.length) {
+        const list = data.unmatched.slice(0, 10).map(function (x) {
+            const hhmm = x.time ? ' ' + x.time.slice(0, 2) + ':' + x.time.slice(2, 4) : '';
+            return escapeHtml(x.call) + ' ' + escapeHtml(x.date) + hhmm;
+        }).join('、');
+        lines.push(`⚠️ LoTW 有確認但網站沒有：${list}`);
+    }
+    box.innerHTML = lines.join('<br>');
+}
+
+// ============================================================
 // 初始化與事件委託綁定
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -908,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('❌ 錯誤: ' + data.error);
         } else {
             showToast('✅ ' + (data.message || '同步成功！'));
+            renderLotwResult(data);
             allRecords = []; 
             renderAdminTable(); 
         }

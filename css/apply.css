@@ -82,7 +82,7 @@
 /* ===== 5. 深色模式（由 js/theme.js 設定 html[data-theme]） ===== */
 html[data-theme="dark"] .ship-grid input,
 html[data-theme="dark"] .ship-grid select {
-    background: #141d2f !important;
+    background-color: #141d2f !important;
     color: #d7e3f4 !important;
     border-color: #2f405c !important;
 }
