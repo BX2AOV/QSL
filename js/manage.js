@@ -281,6 +281,7 @@ async function renderAdminTable() {
                     <div class="req-detail">
                         <strong>收件人：</strong>${escapeHtml(req.shipName)}<br>
                         <strong>手機：</strong>${escapeHtml(req.shipPhone)}<br>
+                        ${req.shipEmail ? `<strong>Email：</strong>${escapeHtml(req.shipEmail)}<br>` : ''}
                         <strong>地址：</strong>${escapeHtml(req.shipZip)} ${escapeHtml(req.shipAddress)}
                     </div>
                     <div style="display:flex; gap:6px;">

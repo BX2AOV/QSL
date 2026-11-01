@@ -45,6 +45,30 @@ window.SB = (function () {
         /* SB.rpc('my_qsl_requests', { p_user_call: 'BX2AOV' }) */
         rpc: function (fn, args) {
             return call('rpc/' + fn, { method: 'POST', body: JSON.stringify(args || {}) });
+        },
+        /* SB.function('send-qsl-mail', { recordId: 123 }) */
+        function: async function (name, body) {
+            const res = await fetch(URL.replace('/rest/v1/', '/functions/v1/' + name), {
+                method: 'POST',
+                headers: {
+                    apikey: KEY,
+                    Authorization: 'Bearer ' + KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body || {})
+            });
+            const text = await res.text();
+            let data = null;
+            if (text) {
+                try { data = JSON.parse(text); } catch (_) { data = text; }
+            }
+            if (!res.ok) {
+                const err = new Error((data && (data.error || data.message)) || ('HTTP ' + res.status));
+                err.status = res.status;
+                err.details = data && data.details;
+                throw err;
+            }
+            return data;
         }
     };
 })();

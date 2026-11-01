@@ -263,7 +263,9 @@ document.addEventListener('DOMContentLoaded', function() {
             CALL_MISMATCH: '只能申請自己呼號的通聯',
             RECORD_NOT_FOUND: '找不到這筆通聯紀錄',
             INVALID_NAME: '請填寫收件人姓名',
-            INVALID_ADDR: '請填寫收件地址'
+            INVALID_ADDR: '請填寫收件地址',
+            INVALID_EMAIL: '請填寫正確的 Email',
+            EMAIL_TOO_LONG: 'Email 太長'
         };
         return map[raw] || raw;
     }
@@ -347,8 +349,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const zip = document.getElementById('shipZip').value.trim();
             const address = document.getElementById('shipAddress').value.trim();
             const note = document.getElementById('shipNote').value.trim();
+            const email = (document.getElementById('shipEmail')?.value || '').trim().toLowerCase();
 
             if (!name || !zip || !address) { showToast('請填寫完整收件資訊'); return; }
+            if (!email) { showToast('請填寫 Email，確認信會寄到這個信箱'); return; }
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showToast('Email 格式看起來不對，請再檢查'); return; }
             if (!isPhoneDisabled && !rawPhone) { showToast('請填寫手機或點擊無需提供'); return; }
 
             let finalPhone = isPhoneDisabled ? '未提供' : `${currentCountryCode} ${rawPhone}`;
@@ -356,6 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.disabled = true; 
             btnSubmit.textContent = '處理中...';
             let count = 0, hasError = false, firstErr = null;
+            const sentRecordIds = [];
 
             for (const id of selectedRecordIds) {
                 try {
@@ -366,13 +372,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         p_ship_phone: finalPhone,
                         p_ship_zip: zip,
                         p_ship_addr: address,
-                        p_ship_note: note
+                        p_ship_note: note,
+                        p_ship_email: email
                     });
                     count++;
+                    sentRecordIds.push(Number(id));
                 } catch (error) {
                     hasError = true;
                     if (!firstErr) firstErr = error;
                     console.error("提交失敗:", error);
+                }
+            }
+
+            // 寄確認信（失敗不影響申請結果）
+            let mailOk = 0, mailFail = 0;
+            for (const rid of sentRecordIds) {
+                try {
+                    await SB.function('send-qsl-mail', { recordId: rid });
+                    mailOk++;
+                } catch (e) {
+                    mailFail++;
+                    console.warn('確認信寄送失敗:', e);
                 }
             }
 
@@ -382,7 +402,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (count === 0) showToast('❌ ' + rpcErrorText(firstErr));
             else if (hasError) showToast(`⚠️ 已送出 ${count} 筆，部分失敗：${rpcErrorText(firstErr)}`);
-            else showToast(`✅ 已送出 ${count} 筆申請`);
+            else if (mailFail > 0) showToast(`✅ 已送出 ${count} 筆申請（確認信寄送失敗，管理員會再處理）`);
+            else showToast(`✅ 已送出 ${count} 筆申請，確認信已寄到 ${email}`);
 
             selectedRecordIds.clear();
             if (selectAllCheckbox) selectAllCheckbox.checked = false;
@@ -397,6 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('shipZip').value = ''; 
             document.getElementById('shipAddress').value = ''; 
             document.getElementById('shipNote').value = ''; 
+            document.getElementById('shipEmail').value = ''; 
             shipInfoCard.style.display = 'none';
         });
     }
