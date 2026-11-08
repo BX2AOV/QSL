@@ -138,6 +138,7 @@ tr:hover td { background: #fafdff; }
 .badge-approved { background: #d9f0e0; color: #0e6b3e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; white-space: nowrap; }
 .badge-rejected { background: #fde8e8; color: #b03030; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; display: inline-block; white-space: nowrap; }
 .badge-lotw { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 3px 9px; border-radius: 40px; font-size: 0.72rem; font-weight: 700; display: inline-block; white-space: nowrap; margin-left: 6px; vertical-align: middle; }
+.badge-lock { background: #fff4e5; color: #b45309; border: 1px solid #fcd9a5; padding: 3px 9px; border-radius: 40px; font-size: 0.72rem; font-weight: 700; display: inline-block; white-space: nowrap; margin-left: 6px; vertical-align: middle; }
 .lotw-chip { margin-top: 6px; display: inline-block; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 40px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
 .open-chip { margin-top: 6px; display: inline-block; background: #fff4e5; color: #b45309; border: 1px solid #fcd9a5; border-radius: 40px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
 .btn-open-apply { background: #e6f0ff; color: #0b4a8f; border: 1px solid #c7d2fe; padding: 6px 10px; border-radius: 40px; cursor: pointer; font-size: 0.72rem; font-weight: 700; white-space: nowrap; margin: 0 4px 4px 0; }
@@ -374,6 +375,7 @@ html[data-theme="dark"] .badge-rejected { background: rgba(248,113,113,.16); col
 html[data-theme="dark"] .badge-completed-dark { background: #17603c; color: #fff; }
 html[data-theme="dark"] .badge-lotw,
 html[data-theme="dark"] .lotw-chip { background: rgba(129,140,248,.18); color: #a5b4fc; border-color: rgba(129,140,248,.35); }
+html[data-theme="dark"] .badge-lock { background: rgba(251,191,36,.16); color: #fbbf24; border-color: rgba(251,191,36,.35); }
 html[data-theme="dark"] .open-chip { background: rgba(251,191,36,.16); color: #fbbf24; border-color: rgba(251,191,36,.35); }
 html[data-theme="dark"] .btn-open-apply { background: rgba(56,189,248,.14); color: #7dd3fc; border-color: rgba(56,189,248,.3); }
 html[data-theme="dark"] .btn-open-apply.is-open { background: rgba(251,191,36,.16); color: #fbbf24; border-color: rgba(251,191,36,.35); }

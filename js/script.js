@@ -5,6 +5,7 @@
 
 let qslRecords = [];
 let filteredRecords = []; 
+let sentCalls = new Set(); // 有寄出／完成卡片的呼號
 let currentLang = localStorage.getItem('site_lang') || 'zh'; 
 
 // 🌟 分頁專用變數
@@ -154,6 +155,15 @@ async function fetchData() {
 
     // qsl_public 已不含 requests，不需再補空陣列
     qslRecords = data || [];
+
+    // 同呼號是否已經寄過卡片（用來在列表上標示）
+    try {
+        const sentRows = await SB.select('qsl_public', 'select=call&status=in.(sent,completed)&limit=5000');
+        sentCalls = new Set((sentRows || []).map(x => (x.call || '').toUpperCase()));
+    } catch (_) {
+        sentCalls = new Set();
+    }
+
     filteredRecords = [...qslRecords]; 
     currentPage = 1;
     renderMainTable();
@@ -182,6 +192,8 @@ function renderMainTable() {
 
     tbody.innerHTML = paginatedRecords.map(r => {
         const st = computeQslStatus(r);
+        const sameCallSent = sentCalls.has((r.call || '').toUpperCase())
+            && !['sent', 'completed', 'not_needed'].includes(r.status);
         
         // C-2 修復：屬性值用 escAttr 轉義；移除內聯 onclick，改 data-src 由事件委託處理
         const recvImg = r.receivedImg 
@@ -229,7 +241,7 @@ function renderMainTable() {
             <td><span style="font-weight:bold; color:#7b3fa0;">${escapeHtml(displayMode)}</span></td>
             <td style="text-align:center;">${recvImg}</td>
             <td style="text-align:center;">${sentImg}</td>
-            <td><span class="${st.cls}">${st.text}</span>${r.lotwConfirmed ? '<span class="badge-lotw" title="LoTW 已確認通聯">LoTW ✓</span>' : ''}</td>
+            <td><span class="${st.cls}">${st.text}</span>${sameCallSent ? '<span class="badge-lock" title="同呼號已經寄過卡片">同呼號已寄卡</span>' : ''}${r.lotwConfirmed ? '<span class="badge-lotw" title="LoTW 已確認通聯">LoTW ✓</span>' : ''}</td>
             <td>${escapeHtml(displayNote)}</td>
         </tr>`;
     }).join('');
